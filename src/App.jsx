@@ -239,15 +239,16 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
     try {
       if (mode === "signup") {
         const data = await authRequest("signup", { email, password });
-        const token = data.access_token;
-        // Create profile
-        await supabase("profiles", {
-          method: "POST",
-          token,
-          prefer: "return=representation",
-          body: { id: data.user.id, display_name: name || email.split("@")[0] },
-        });
-        onSuccess({ token, user: data.user, profile: { display_name: name || email.split("@")[0] } });
+const token = data.access_token;
+const userId = data.user?.id || data.id;
+// Create profile
+await supabase("profiles", {
+  method: "POST",
+  token,
+  prefer: "return=representation",
+  body: { id: userId, display_name: name || email.split("@")[0] },
+});
+onSuccess({ token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
         showToast("Account created! Welcome to R2R 🏀");
       } else {
         const data = await authRequest("token?grant_type=password", { email, password });
