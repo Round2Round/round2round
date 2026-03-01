@@ -933,7 +933,7 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
       cursor: locked ? "default" : "pointer",
       opacity: lost && !selected ? 0.4 : 1,
       transition: "background 0.15s",
-    }} onClick={onPick}>
+    }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPick(); }}>
       <div style={{
         minWidth: 36, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
         background: team.seed <= 2 ? C.ncaaBlueFadeMed : C.surfaceGray,
