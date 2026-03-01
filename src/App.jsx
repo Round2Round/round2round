@@ -403,50 +403,55 @@ function CreateGroup({ session, onCreate, onBack, showToast }) {
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(null);
 
-  const handleCreate = async () => {
-    if (name.length < 2) return;
-    setLoading(true);
-    try {
-      const code = randomCode();
-      const groups = await supabase("groups", {
-        method: "POST", token: session.token,
-        prefer: "return=representation",
-        body: { name, code, tournament, created_by: session.user.id, current_round: 1 },
-      });
-      const group = Array.isArray(groups) ? groups[0] : groups;
-      // Add creator as member
-      await supabase("group_members", {
-        method: "POST", token: session.token,
-        body: { group_id: group.id, user_id: session.user.id },
-      });
-      // Create round 1 and seed matchups
-      const rounds = await supabase("rounds", {
-        method: "POST", token: session.token,
-        prefer: "return=representation",
-        body: { group_id: group.id, round_number: 1, deadline: "2026-03-20T17:00:00Z", is_locked: false },
-      });
-      const round = Array.isArray(rounds) ? rounds[0] : rounds;
-      // Seed matchups for round 1
-      const matchupRows = [];
-      REGIONS.forEach(region => {
-        const rt = TEAMS_MENS.filter(t => t.region === region).sort((a, b) => a.seed - b.seed);
-        [[0,7],[1,6],[2,5],[3,4]].forEach(([a, b]) => {
-          matchupRows.push({ round_id: round.id, team1_name: rt[a].name, team1_seed: rt[a].seed, team2_name: rt[b].name, team2_seed: rt[b].seed, region });
-        });
-      });
-      await supabase("matchups", {
-        method: "POST", token: session.token,
-        body: matchupRows,
-      });
-      setCreated({ ...group, code });
-   } catch (err) {
-      showToast("Error: " + JSON.stringify(err.message || err), "error");
-      console.error("Full error:", err);
-    } finally {
-      setLoading(false);
+const handleCreate = async () => {
+  if (name.length < 2) return;
+  setLoading(true);
+  try {
+    const code = randomCode();
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/groups`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+      },
+      body: JSON.stringify({ name, code, tournament, created_by: session.user.id, current_round: 1 }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || JSON.stringify(err));
     }
-  };
-
+    const groups = await res.json();
+    const group = Array.isArray(groups) ? groups[0] : groups;
+    await supabase("group_members", {
+      method: "POST", token: session.token,
+      body: { group_id: group.id, user_id: session.user.id },
+    });
+    const rounds = await supabase("rounds", {
+      method: "POST", token: session.token,
+      prefer: "return=representation",
+      body: { group_id: group.id, round_number: 1, deadline: "2026-03-20T17:00:00Z", is_locked: false },
+    });
+    const round = Array.isArray(rounds) ? rounds[0] : rounds;
+    const matchupRows = [];
+    REGIONS.forEach(region => {
+      const rt = TEAMS_MENS.filter(t => t.region === region).sort((a, b) => a.seed - b.seed);
+      [[0,7],[1,6],[2,5],[3,4]].forEach(([a, b]) => {
+        matchupRows.push({ round_id: round.id, team1_name: rt[a].name, team1_seed: rt[a].seed, team2_name: rt[b].name, team2_seed: rt[b].seed, region });
+      });
+    });
+    await supabase("matchups", {
+      method: "POST", token: session.token,
+      body: matchupRows,
+    });
+    setCreated({ ...group, code });
+  } catch (err) {
+    showToast("Error: " + (err.message || JSON.stringify(err)), "error");
+  } finally {
+    setLoading(false);
+  }
+};
   if (created) return (
     <div style={s.lightPage}>
       <nav style={s.lightNav}><Logo /></nav>
