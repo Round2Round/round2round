@@ -729,17 +729,26 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
     const prev = myPicks[matchupId];
     setMyPicks(p => ({ ...p, [matchupId]: teamName }));
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/picks`, {
-        method: "POST",
-        headers: {
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${session.token}`,
-          "Content-Type": "application/json",
-          "Prefer": "resolution=merge-duplicates,return=minimal",
-          "on_conflict": "user_id,matchup_id",
-        },
-        body: JSON.stringify({ user_id: session.user.id, matchup_id: matchupId, picked_team: teamName, updated_at: new Date().toISOString() }),
+      // Check if pick already exists
+      const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}&select=id`, {
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}` },
       });
+      const existing = await checkRes.json();
+      if (existing?.length) {
+        // Update existing pick
+        await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}`, {
+          method: "PATCH",
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ picked_team: teamName, updated_at: new Date().toISOString() }),
+        });
+      } else {
+        // Insert new pick
+        await fetch(`${SUPABASE_URL}/rest/v1/picks`, {
+          method: "POST",
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json", "Prefer": "return=minimal" },
+          body: JSON.stringify({ user_id: session.user.id, matchup_id: matchupId, picked_team: teamName, updated_at: new Date().toISOString() }),
+        });
+      }
     } catch (err) {
       setMyPicks(p => ({ ...p, [matchupId]: prev }));
       showToast("Couldn't save pick: " + err.message, "error");
