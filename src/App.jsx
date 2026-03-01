@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 
 // ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://vhgqtjtydxzaudnedtan.supabase.co";
@@ -38,6 +38,61 @@ async function authRequest(path, body) {
 
 function randomCode() {
   return "R2R" + Math.random().toString(36).slice(2, 5).toUpperCase();
+}
+
+// ─── ESPN API ─────────────────────────────────────────────────────────────────
+// Fetches completed NCAA tournament games from ESPN
+// Returns a map of { "Team Name": true } for all teams that have WON a game
+async function fetchESPNWinners() {
+  try {
+    const today = new Date();
+    const winners = {};
+    // Fetch last 7 days to catch all completed tournament games
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - d);
+      const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
+      const res = await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${dateStr}&groups=100&limit=100`
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const events = data.events || [];
+      for (const event of events) {
+        // Only count completed games
+        const status = event.status?.type?.completed;
+        if (!status) continue;
+        const comps = event.competitions?.[0];
+        if (!comps) continue;
+        // Find the winner
+        for (const team of comps.competitors || []) {
+          if (team.winner) {
+            const name = team.team?.displayName || team.team?.name || "";
+            if (name) winners[name] = true;
+            // Also store short name variants for fuzzy matching
+            const shortName = team.team?.shortDisplayName || team.team?.abbreviation || "";
+            if (shortName) winners[shortName] = true;
+          }
+        }
+      }
+    }
+    return winners;
+  } catch (err) {
+    console.error("ESPN fetch error:", err);
+    return {};
+  }
+}
+
+// Fuzzy match: checks if a pick name matches an ESPN team name
+// Handles cases like "Iowa St." vs "Iowa State", "UConn" vs "Connecticut"
+function teamNameMatch(pickName, espnWinners) {
+  if (!pickName) return false;
+  const pick = pickName.toLowerCase().trim();
+  return Object.keys(espnWinners).some(espnName => {
+    const espn = espnName.toLowerCase().trim();
+    return espn.includes(pick) || pick.includes(espn) ||
+      pick.replace(/\.$/, "") === espn.replace(/\.$/, "");
+  });
 }
 
 // ─── TEAMS DATA ───────────────────────────────────────────────────────────────
@@ -90,6 +145,7 @@ const C = {
   surfaceGray: "#f8f9fc", border: "#dde3ef", borderLight: "#eef1f7",
   text: "#0d1b2e", textMid: "#3a4a60", textMuted: "#6b7a95", textLight: "#9aa5bc",
   green: "#16a34a", greenFade: "rgba(22,163,74,0.09)",
+  gold: "#f59e0b",
 };
 
 // ─── COUNTDOWN HOOK ───────────────────────────────────────────────────────────
@@ -142,35 +198,44 @@ export default function App() {
     setActiveGroup(null);
   };
 
-  if (screen === "landing") return <Landing onLogin={() => setScreen("auth")} />;
-  if (screen === "auth") return (
-    <Auth mode={authMode} setMode={setAuthMode}
-      onSuccess={(sess) => { saveSession(sess); setScreen("dashboard"); }}
-      showToast={showToast} />
+  return (
+    <div>
+      {toast && (
+        <div style={{
+          position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)",
+          background: toast.type === "error" ? C.red : C.green,
+          color: "#fff", padding: "12px 24px", borderRadius: 10, zIndex: 1000,
+          fontFamily: "'DM Sans',system-ui,sans-serif", fontWeight: 600, fontSize: "0.9rem",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.2)", maxWidth: "90vw", textAlign: "center",
+        }}>{toast.msg}</div>
+      )}
+      {screen === "landing" && <Landing onLogin={() => setScreen("auth")} />}
+      {screen === "auth" && (
+        <Auth mode={authMode} setMode={setAuthMode}
+          onSuccess={(sess) => { saveSession(sess); setScreen("dashboard"); }}
+          showToast={showToast} />
+      )}
+      {screen === "create" && (
+        <CreateGroup session={session} onCreate={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Group created! 🎉"); }}
+          onBack={() => setScreen("dashboard")} showToast={showToast} />
+      )}
+      {screen === "join" && (
+        <JoinGroup session={session} onJoin={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Joined group! 🏀"); }}
+          onBack={() => setScreen("dashboard")} showToast={showToast} />
+      )}
+      {screen === "dashboard" && !activeGroup && (
+        <Dashboard session={session} onSelectGroup={(g) => setActiveGroup(g)}
+          onCreateGroup={() => setScreen("create")} onJoinGroup={() => setScreen("join")}
+          onLogout={handleLogout} showToast={showToast} />
+      )}
+      {screen === "dashboard" && activeGroup && (
+        <GroupScreen group={activeGroup} session={session}
+          activeTab={activeTab} setActiveTab={setActiveTab}
+          onBack={() => { setActiveGroup(null); setActiveTab("picks"); }}
+          showToast={showToast} />
+      )}
+    </div>
   );
-  if (screen === "create") return (
-    <CreateGroup session={session} onCreate={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Group created! 🎉"); }}
-      onBack={() => setScreen("dashboard")} showToast={showToast} />
-  );
-  if (screen === "join") return (
-    <JoinGroup session={session} onJoin={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Joined group! 🏀"); }}
-      onBack={() => setScreen("dashboard")} showToast={showToast} />
-  );
-
-  if (screen === "dashboard") {
-    if (activeGroup) return (
-      <GroupScreen group={activeGroup} session={session}
-        activeTab={activeTab} setActiveTab={setActiveTab}
-        onBack={() => { setActiveGroup(null); setActiveTab("picks"); }}
-        showToast={showToast} />
-    );
-    return (
-      <Dashboard session={session} onSelectGroup={(g) => setActiveGroup(g)}
-        onCreateGroup={() => setScreen("create")} onJoinGroup={() => setScreen("join")}
-        onLogout={handleLogout} showToast={showToast} />
-    );
-  }
-  return null;
 }
 
 // ─── LANDING ─────────────────────────────────────────────────────────────────
@@ -198,7 +263,7 @@ function Landing({ onLogin }) {
       </div>
       <div style={{ background: C.ncaaBlue, padding: "14px 24px" }}>
         <div style={{ display: "flex", gap: 32, justifyContent: "center", flexWrap: "wrap" }}>
-          {["🏆 Live Leaderboards", "🔒 Picks Hidden Until Deadline", "📱 Mobile Friendly", "⚡ Real-Time Scores"].map(t => (
+          {["🏆 Live Leaderboards", "🔒 Picks Hidden Until Deadline", "📱 Mobile Friendly", "⚡ Live ESPN Scores"].map(t => (
             <span key={t} style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.82rem", fontWeight: 600 }}>{t}</span>
           ))}
         </div>
@@ -211,7 +276,7 @@ function Landing({ onLogin }) {
             { icon: "👥", n: "01", title: "Create or Join", desc: "Start a pool and share your group code. Friends join with one link." },
             { icon: "🎯", n: "02", title: "Pick Each Round", desc: "Submit picks before tipoff. Change them freely until the round locks." },
             { icon: "🔒", n: "03", title: "Picks Stay Hidden", desc: "No one sees what you picked until the deadline passes. No copying." },
-            { icon: "🏆", n: "04", title: "Climb the Board", desc: "1pt Round 1, up to 6pts for the champion. Best overall picker wins." },
+            { icon: "🏆", n: "04", title: "Live Scoring", desc: "ESPN updates winners automatically. Leaderboard updates in real time." },
           ].map(st => (
             <div key={st.n} style={s.featureCard}>
               <div style={{ fontSize: "2rem", marginBottom: 12 }}>{st.icon}</div>
@@ -259,16 +324,14 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
     try {
       if (mode === "signup") {
         const data = await authRequest("signup", { email, password });
-const token = data.access_token;
-const userId = data.user?.id || data.id;
-// Create profile
-await supabase("profiles", {
-  method: "POST",
-  token,
-  prefer: "return=representation",
-  body: { id: userId, display_name: name || email.split("@")[0] },
-});
-onSuccess({ token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
+        const token = data.access_token;
+        const userId = data.user?.id || data.id;
+        await supabase("profiles", {
+          method: "POST", token,
+          prefer: "return=representation",
+          body: { id: userId, display_name: name || email.split("@")[0] },
+        });
+        onSuccess({ token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
         showToast("Account created! Welcome to R2R 🏀");
       } else {
         const data = await authRequest("token?grant_type=password", { email, password });
@@ -327,24 +390,15 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadGroups();
-  }, []);
+  useEffect(() => { loadGroups(); }, []);
 
   const loadGroups = async () => {
     setLoading(true);
     try {
-      // Get groups where user is a member
-      const members = await supabase(
-        `group_members?user_id=eq.${session.user.id}&select=group_id`,
-        { token: session.token }
-      );
+      const members = await supabase(`group_members?user_id=eq.${session.user.id}&select=group_id`, { token: session.token });
       if (!members?.length) { setGroups([]); setLoading(false); return; }
       const ids = members.map(m => m.group_id).join(",");
-      const gs = await supabase(
-        `groups?id=in.(${ids})&select=*&order=created_at.desc`,
-        { token: session.token }
-      );
+      const gs = await supabase(`groups?id=in.(${ids})&select=*&order=created_at.desc`, { token: session.token });
       setGroups(gs || []);
     } catch (err) {
       showToast("Couldn't load groups: " + err.message, "error");
@@ -352,8 +406,6 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
       setLoading(false);
     }
   };
-
-  const initials = (session.profile?.display_name || "Me").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <div style={s.lightPage}>
@@ -370,15 +422,12 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
           <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.875rem" }}>March Madness 2026</p>
         </div>
       </div>
-
       <div style={{ maxWidth: 680, margin: "-32px auto 0", padding: "0 24px 60px", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginBottom: 20 }}>
           <button style={s.btnOutline} onClick={onJoinGroup}>Join a Group</button>
           <button style={s.btnPrimary} onClick={onCreateGroup}>+ Create Group</button>
         </div>
-
         {loading && <div style={s.loadingBox}>Loading your groups...</div>}
-
         {!loading && groups.length === 0 && (
           <div style={s.emptyBox}>
             <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>🏀</div>
@@ -387,7 +436,6 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
             <button style={s.btnPrimary} onClick={onCreateGroup}>Create Your First Group</button>
           </div>
         )}
-
         {groups.map(g => (
           <div key={g.id} style={s.groupCard} onClick={() => onSelectGroup(g)}>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -403,7 +451,6 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
             </div>
           </div>
         ))}
-
         <div style={s.infoCard}>
           <div style={{ fontSize: "1.5rem" }}>🔒</div>
           <div>
@@ -423,55 +470,53 @@ function CreateGroup({ session, onCreate, onBack, showToast }) {
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(null);
 
-const handleCreate = async () => {
-  if (name.length < 2) return;
-  setLoading(true);
-  try {
-    const code = randomCode();
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/groups`, {
-      method: "POST",
-      headers: {
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${session.token}`,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-      },
-      body: JSON.stringify({ name, code, tournament, created_by: session.user.id, current_round: 1 }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || JSON.stringify(err));
-    }
-    const groups = await res.json();
-    const group = Array.isArray(groups) ? groups[0] : groups;
-    await supabase("group_members", {
-      method: "POST", token: session.token,
-      body: { group_id: group.id, user_id: session.user.id },
-    });
-    const rounds = await supabase("rounds", {
-      method: "POST", token: session.token,
-      prefer: "return=representation",
-      body: { group_id: group.id, round_number: 1, deadline: "2026-03-20T17:00:00Z", is_locked: false },
-    });
-    const round = Array.isArray(rounds) ? rounds[0] : rounds;
-    const matchupRows = [];
-    REGIONS.forEach(region => {
-      const rt = TEAMS_MENS.filter(t => t.region === region).sort((a, b) => a.seed - b.seed);
-      [[0,7],[1,6],[2,5],[3,4]].forEach(([a, b]) => {
-        matchupRows.push({ round_id: round.id, team1_name: rt[a].name, team1_seed: rt[a].seed, team2_name: rt[b].name, team2_seed: rt[b].seed, region });
+  const handleCreate = async () => {
+    if (name.length < 2) return;
+    setLoading(true);
+    try {
+      const code = randomCode();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/groups`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${session.token}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=representation",
+        },
+        body: JSON.stringify({ name, code, tournament, created_by: session.user.id, current_round: 1 }),
       });
-    });
-    await supabase("matchups", {
-      method: "POST", token: session.token,
-      body: matchupRows,
-    });
-    setCreated({ ...group, code });
-  } catch (err) {
-    showToast("Error: " + (err.message || JSON.stringify(err)), "error");
-  } finally {
-    setLoading(false);
-  }
-};
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || JSON.stringify(err));
+      }
+      const groups = await res.json();
+      const group = Array.isArray(groups) ? groups[0] : groups;
+      await supabase("group_members", {
+        method: "POST", token: session.token,
+        body: { group_id: group.id, user_id: session.user.id },
+      });
+      const rounds = await supabase("rounds", {
+        method: "POST", token: session.token,
+        prefer: "return=representation",
+        body: { group_id: group.id, round_number: 1, deadline: "2026-03-20T17:00:00Z", is_locked: false },
+      });
+      const round = Array.isArray(rounds) ? rounds[0] : rounds;
+      const matchupRows = [];
+      REGIONS.forEach(region => {
+        const rt = TEAMS_MENS.filter(t => t.region === region).sort((a, b) => a.seed - b.seed);
+        [[0,7],[1,6],[2,5],[3,4]].forEach(([a, b]) => {
+          matchupRows.push({ round_id: round.id, team1_name: rt[a].name, team1_seed: rt[a].seed, team2_name: rt[b].name, team2_seed: rt[b].seed, region });
+        });
+      });
+      await supabase("matchups", { method: "POST", token: session.token, body: matchupRows });
+      setCreated({ ...group, code });
+    } catch (err) {
+      showToast("Error: " + (err.message || JSON.stringify(err)), "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (created) return (
     <div style={s.lightPage}>
       <nav style={s.lightNav}><Logo /></nav>
@@ -527,37 +572,24 @@ function JoinGroup({ session, onJoin, onBack, showToast }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-const handleJoin = async () => {
+  const handleJoin = async () => {
     if (code.length < 3) return;
     setLoading(true);
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/groups?code=eq.${code}&select=*`, {
-        headers: {
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${session.token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
       });
       const groups = await res.json();
       if (!groups?.length) throw new Error("Group not found. Check the code and try again.");
       const group = groups[0];
       const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/group_members?group_id=eq.${group.id}&user_id=eq.${session.user.id}`, {
-        headers: {
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${session.token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
       });
       const existing = await existingRes.json();
       if (existing?.length) { onJoin(group); return; }
       await fetch(`${SUPABASE_URL}/rest/v1/group_members`, {
         method: "POST",
-        headers: {
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${session.token}`,
-          "Content-Type": "application/json",
-          "Prefer": "return=minimal",
-        },
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json", "Prefer": "return=minimal" },
         body: JSON.stringify({ group_id: group.id, user_id: session.user.id }),
       });
       onJoin(group);
@@ -601,77 +633,91 @@ const handleJoin = async () => {
 function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToast }) {
   const [matchups, setMatchups] = useState([]);
   const [myPicks, setMyPicks] = useState({});
-  const [submitted, setSubmitted] = useState(false);
   const [leaderboard, setLeaderboard] = useState([]);
   const [round, setRound] = useState(null);
   const [loading, setLoading] = useState(true);
   const [memberCount, setMemberCount] = useState(0);
+  const [espnWinners, setEspnWinners] = useState({});
+  const [scoringLoading, setScoringLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => { loadGroupData(); }, [group.id]);
+
+  // Refresh ESPN scores every 5 minutes automatically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (round?.is_locked) refreshScores();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [round]);
+
+  const refreshScores = async () => {
+    setScoringLoading(true);
+    try {
+      const winners = await fetchESPNWinners();
+      setEspnWinners(winners);
+      setLastUpdated(new Date());
+    } catch { /* silent */ } finally {
+      setScoringLoading(false);
+    }
+  };
 
   const loadGroupData = async () => {
     setLoading(true);
     try {
-      // Load current round
-      const rounds = await supabase(
-        `rounds?group_id=eq.${group.id}&round_number=eq.${group.current_round}&select=*`,
-        { token: session.token }
-      );
+      const rounds = await supabase(`rounds?group_id=eq.${group.id}&round_number=eq.${group.current_round}&select=*`, { token: session.token });
       const currentRound = rounds?.[0];
       setRound(currentRound);
 
       if (currentRound) {
-        // Load matchups
-        const mps = await supabase(
-          `matchups?round_id=eq.${currentRound.id}&select=*&order=region.asc`,
-          { token: session.token }
-        );
+        const mps = await supabase(`matchups?round_id=eq.${currentRound.id}&select=*&order=region.asc`, { token: session.token });
         setMatchups(mps || []);
 
-        // Load my picks
         const pickIds = (mps || []).map(m => m.id).join(",");
         if (pickIds) {
-          const picks = await supabase(
-            `picks?user_id=eq.${session.user.id}&matchup_id=in.(${pickIds})&select=*`,
-            { token: session.token }
-          );
+          const picks = await supabase(`picks?user_id=eq.${session.user.id}&matchup_id=in.(${pickIds})&select=*`, { token: session.token });
           const pickMap = {};
           (picks || []).forEach(p => { pickMap[p.matchup_id] = p.picked_team; });
           setMyPicks(pickMap);
-          if (Object.keys(pickMap).length > 0) setSubmitted(true);
         }
       }
 
-      // Member count
       const members = await supabase(`group_members?group_id=eq.${group.id}&select=user_id`, { token: session.token });
       setMemberCount(members?.length || 0);
 
-      // Leaderboard — scores based on correct picks
-      await loadLeaderboard(currentRound);
+      await loadLeaderboard(currentRound, members);
 
+      // Fetch ESPN scores
+      setScoringLoading(true);
+      const winners = await fetchESPNWinners();
+      setEspnWinners(winners);
+      setLastUpdated(new Date());
     } catch (err) {
       showToast("Error loading group: " + err.message, "error");
     } finally {
       setLoading(false);
+      setScoringLoading(false);
     }
   };
 
-  const loadLeaderboard = async (currentRound) => {
+  const loadLeaderboard = async (currentRound, members) => {
     try {
-      const members = await supabase(
-        `group_members?group_id=eq.${group.id}&select=user_id`,
-        { token: session.token }
-      );
-      const profiles = await supabase(
-        `profiles?id=in.(${members.map(m => m.user_id).join(",")})&select=*`,
-        { token: session.token }
-      );
-      // For now show profiles with placeholder scores (real scoring needs winner data)
-      const lb = profiles.map(p => ({
+      if (!members?.length) return;
+      const profiles = await supabase(`profiles?id=in.(${members.map(m => m.user_id).join(",")})&select=*`, { token: session.token });
+
+      // Load picks for all members if round is locked
+      let allPicks = [];
+      if (currentRound && matchups.length > 0) {
+        const pickIds = matchups.map(m => m.id).join(",");
+        if (pickIds) {
+          allPicks = await supabase(`picks?matchup_id=in.(${pickIds})&select=*`, { token: session.token }) || [];
+        }
+      }
+
+      const lb = (profiles || []).map(p => ({
         id: p.id,
         name: p.display_name,
-        points: 0,
-        correct: 0,
+        picks: allPicks.filter(pk => pk.user_id === p.id),
         isMe: p.id === session.user.id,
       }));
       setLeaderboard(lb);
@@ -683,20 +729,32 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
     const prev = myPicks[matchupId];
     setMyPicks(p => ({ ...p, [matchupId]: teamName }));
     try {
-      // Upsert pick
       await supabase("picks", {
         method: "POST", token: session.token,
         prefer: "return=minimal,resolution=merge-duplicates",
         headers: { "on_conflict": "user_id,matchup_id" },
         body: { user_id: session.user.id, matchup_id: matchupId, picked_team: teamName, updated_at: new Date().toISOString() },
       });
-      setSubmitted(true);
     } catch (err) {
-      // Rollback
       setMyPicks(p => ({ ...p, [matchupId]: prev }));
       showToast("Couldn't save pick: " + err.message, "error");
     }
   };
+
+  // Calculate scores using ESPN winners
+  const calculateScores = (playerPicks) => {
+    if (!playerPicks?.length || !Object.keys(espnWinners).length) return { points: 0, correct: 0 };
+    const roundPoints = ROUND_POINTS[(group.current_round || 1) - 1];
+    let correct = 0;
+    playerPicks.forEach(pick => {
+      if (teamNameMatch(pick.picked_team, espnWinners)) correct++;
+    });
+    return { points: correct * roundPoints, correct };
+  };
+
+  const scoredLeaderboard = leaderboard
+    .map(p => ({ ...p, ...calculateScores(p.picks) }))
+    .sort((a, b) => b.points - a.points);
 
   const picksCount = Object.keys(myPicks).length;
   const total = matchups.length;
@@ -732,12 +790,15 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
           <div style={{ padding: "0 24px 32px" }}>
             {loading && <div style={{ padding: "40px 0", textAlign: "center", color: C.textMuted }}>Loading...</div>}
             {!loading && activeTab === "picks" && (
-              <PicksTab matchups={matchups} myPicks={myPicks} submitted={submitted}
-                onPick={handlePick} picksCount={picksCount} total={total}
-                countdown={countdown} deadlinePassed={deadlinePassed} />
+              <PicksTab matchups={matchups} myPicks={myPicks} onPick={handlePick}
+                picksCount={picksCount} total={total} countdown={countdown}
+                deadlinePassed={deadlinePassed} espnWinners={espnWinners} />
             )}
             {!loading && activeTab === "leaderboard" && (
-              <LeaderboardTab leaderboard={leaderboard} group={group} memberCount={memberCount} deadlinePassed={deadlinePassed} />
+              <LeaderboardTab leaderboard={scoredLeaderboard} group={group}
+                memberCount={memberCount} deadlinePassed={deadlinePassed}
+                scoringLoading={scoringLoading} lastUpdated={lastUpdated}
+                onRefresh={refreshScores} espnWinners={espnWinners} />
             )}
           </div>
         </div>
@@ -745,11 +806,6 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
 
       {activeTab === "picks" && !deadlinePassed && (
         <div style={s.floater}>
-          {submitted && picksCount > 0 && (
-            <div style={{ textAlign: "center", fontSize: "0.8rem", color: C.green, fontWeight: 600, marginBottom: 8 }}>
-              ✓ Picks saving automatically — update anytime before deadline
-            </div>
-          )}
           <div style={{ ...s.btnPrimary, width: "100%", padding: "15px", fontSize: "1rem", textAlign: "center", opacity: picksCount === total ? 1 : 0.45, boxSizing: "border-box" }}>
             {picksCount < total ? `${total - picksCount} game${total - picksCount !== 1 ? "s" : ""} remaining` : "✓ All picks submitted!"}
           </div>
@@ -760,7 +816,7 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
 }
 
 // ─── PICKS TAB ────────────────────────────────────────────────────────────────
-function PicksTab({ matchups, myPicks, submitted, onPick, picksCount, total, countdown, deadlinePassed }) {
+function PicksTab({ matchups, myPicks, onPick, picksCount, total, countdown, deadlinePassed, espnWinners }) {
   return (
     <div style={{ paddingTop: 20 }}>
       {!deadlinePassed ? (
@@ -802,9 +858,7 @@ function PicksTab({ matchups, myPicks, submitted, onPick, picksCount, total, cou
         </div>
       )}
 
-      {matchups.length === 0 && (
-        <div style={s.emptyBox}>No matchups found for this round.</div>
-      )}
+      {matchups.length === 0 && <div style={s.emptyBox}>No matchups found for this round.</div>}
 
       {REGIONS.map(region => {
         const regionMatchups = matchups.filter(m => m.region === region);
@@ -818,7 +872,8 @@ function PicksTab({ matchups, myPicks, submitted, onPick, picksCount, total, cou
               </span>
             </div>
             {regionMatchups.map(m => (
-              <MatchupCard key={m.id} matchup={m} pick={myPicks[m.id]} onPick={onPick} locked={deadlinePassed} />
+              <MatchupCard key={m.id} matchup={m} pick={myPicks[m.id]} onPick={onPick}
+                locked={deadlinePassed} espnWinners={espnWinners} />
             ))}
           </div>
         );
@@ -828,28 +883,41 @@ function PicksTab({ matchups, myPicks, submitted, onPick, picksCount, total, cou
 }
 
 // ─── MATCHUP CARD ─────────────────────────────────────────────────────────────
-function MatchupCard({ matchup, pick, onPick, locked }) {
+function MatchupCard({ matchup, pick, onPick, locked, espnWinners }) {
+  const team1Won = Object.keys(espnWinners).length > 0 && teamNameMatch(matchup.team1_name, espnWinners);
+  const team2Won = Object.keys(espnWinners).length > 0 && teamNameMatch(matchup.team2_name, espnWinners);
+  const gameComplete = team1Won || team2Won;
+
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 10, background: C.surface, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
       <TeamRow team={{ name: matchup.team1_name, seed: matchup.team1_seed, region: matchup.region }}
-        selected={pick === matchup.team1_name} onPick={() => !locked && onPick(matchup.id, matchup.team1_name)} locked={locked} />
+        selected={pick === matchup.team1_name} onPick={() => !locked && onPick(matchup.id, matchup.team1_name)}
+        locked={locked} won={team1Won} lost={gameComplete && !team1Won}
+        correct={pick === matchup.team1_name && team1Won} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", borderTop: `1px solid ${C.borderLight}`, borderBottom: `1px solid ${C.borderLight}`, padding: "4px 0", background: C.surfaceGray }}>
         <span style={{ fontSize: "0.6rem", fontWeight: 900, letterSpacing: "0.12em", color: C.textLight }}>VS</span>
       </div>
       <TeamRow team={{ name: matchup.team2_name, seed: matchup.team2_seed, region: matchup.region }}
-        selected={pick === matchup.team2_name} onPick={() => !locked && onPick(matchup.id, matchup.team2_name)} locked={locked} />
+        selected={pick === matchup.team2_name} onPick={() => !locked && onPick(matchup.id, matchup.team2_name)}
+        locked={locked} won={team2Won} lost={gameComplete && !team2Won}
+        correct={pick === matchup.team2_name && team2Won} />
     </div>
   );
 }
 
-function TeamRow({ team, selected, onPick, locked }) {
+function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
+  let bg = "transparent";
+  let borderColor = "transparent";
+  if (correct) { bg = "rgba(22,163,74,0.08)"; borderColor = C.green; }
+  else if (selected && won === false && lost) { bg = C.redFade; borderColor = C.red; }
+  else if (selected) { bg = C.ncaaBlueFade; borderColor = C.ncaaBlue; }
+
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
-      background: selected ? `linear-gradient(90deg, ${C.ncaaBlueFade}, transparent)` : "transparent",
-      borderLeft: selected ? `3px solid ${C.ncaaBlue}` : "3px solid transparent",
+      background: bg, borderLeft: `3px solid ${borderColor}`,
       cursor: locked ? "default" : "pointer",
-      opacity: locked && !selected ? 0.5 : 1,
+      opacity: lost && !selected ? 0.4 : 1,
       transition: "background 0.15s",
     }} onClick={onPick}>
       <div style={{
@@ -862,15 +930,19 @@ function TeamRow({ team, selected, onPick, locked }) {
         <div style={{ fontSize: "0.92rem", fontWeight: 700, color: C.text }}>{team.name}</div>
         <div style={{ fontSize: "0.68rem", color: C.textMuted, marginTop: 1 }}>{team.region} · Seed {team.seed}</div>
       </div>
-      {selected && (
-        <div style={{ background: C.ncaaBlue, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}>✓ Picked</div>
-      )}
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+        {won && <span style={{ background: C.green, color: "#fff", padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>WON</span>}
+        {lost && <span style={{ background: C.redFade, color: C.red, padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>OUT</span>}
+        {selected && !won && !lost && <div style={{ background: C.ncaaBlue, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ Picked</div>}
+        {correct && <div style={{ background: C.green, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ +1pt</div>}
+      </div>
     </div>
   );
 }
 
 // ─── LEADERBOARD ─────────────────────────────────────────────────────────────
-function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed }) {
+function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scoringLoading, lastUpdated, onRefresh, espnWinners }) {
+  const hasScores = Object.keys(espnWinners).length > 0;
   return (
     <div style={{ paddingTop: 20 }}>
       {!deadlinePassed && (
@@ -882,6 +954,25 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed }) {
           </div>
         </div>
       )}
+
+      {/* ESPN Score status */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: "0.78rem", color: C.textMuted }}>
+          {scoringLoading ? "⟳ Fetching live scores..." :
+           hasScores ? `⚡ ESPN scores live` :
+           "No games completed yet"}
+          {lastUpdated && !scoringLoading && (
+            <span style={{ marginLeft: 6, color: C.textLight }}>
+              · Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+        </div>
+        <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.ncaaBlue, padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: "0.72rem", fontWeight: 600, fontFamily: "inherit" }}
+          onClick={onRefresh} disabled={scoringLoading}>
+          {scoringLoading ? "..." : "Refresh"}
+        </button>
+      </div>
+
       <div style={{ display: "flex", gap: 0, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
         {[{ v: memberCount, l: "Players" }, { v: `Rd ${group.current_round}`, l: "Current Round" }, { v: `${ROUND_POINTS[(group.current_round || 1) - 1]}pt`, l: "Per Pick" }].map((st, i) => (
           <div key={st.l} style={{ flex: 1, padding: "16px 12px", textAlign: "center", borderRight: i < 2 ? `1px solid ${C.border}` : "none", background: C.surface }}>
@@ -890,6 +981,7 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed }) {
           </div>
         ))}
       </div>
+
       {leaderboard.length === 0 && <div style={s.emptyBox}>No players yet.</div>}
       {leaderboard.map((p, i) => (
         <div key={p.id} style={{
@@ -913,8 +1005,12 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed }) {
             {p.isMe && <span style={{ background: C.ncaaBlue, color: "#fff", padding: "2px 7px", borderRadius: 4, fontSize: "0.62rem", fontWeight: 700, marginLeft: 6 }}>YOU</span>}
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontWeight: 800, fontSize: "1rem", color: C.ncaaBlue }}>{p.points} pts</div>
-            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>{p.correct} correct</div>
+            <div style={{ fontWeight: 800, fontSize: "1rem", color: hasScores ? C.ncaaBlue : C.textMuted }}>
+              {hasScores ? `${p.points} pts` : "—"}
+            </div>
+            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>
+              {hasScores ? `${p.correct} correct` : "awaiting games"}
+            </div>
           </div>
         </div>
       ))}
