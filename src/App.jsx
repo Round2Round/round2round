@@ -902,54 +902,22 @@ function MatchupCard({ matchup, pick, onPick, locked, espnWinners }) {
   const team2Won = Object.keys(espnWinners).length > 0 && teamNameMatch(matchup.team2_name, espnWinners);
   const gameComplete = team1Won || team2Won;
 
+  const pickTeam1 = (e) => { e.preventDefault(); e.stopPropagation(); if (!locked) onPick(matchup.id, matchup.team1_name); };
+  const pickTeam2 = (e) => { e.preventDefault(); e.stopPropagation(); if (!locked) onPick(matchup.id, matchup.team2_name); };
+
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 10, background: C.surface, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
       <TeamRow team={{ name: matchup.team1_name, seed: matchup.team1_seed, region: matchup.region }}
-        selected={pick === matchup.team1_name} onPick={() => !locked && onPick(matchup.id, matchup.team1_name)}
+        selected={pick === matchup.team1_name} onPick={pickTeam1}
         locked={locked} won={team1Won} lost={gameComplete && !team1Won}
         correct={pick === matchup.team1_name && team1Won} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", borderTop: `1px solid ${C.borderLight}`, borderBottom: `1px solid ${C.borderLight}`, padding: "2px 0", background: C.surfaceGray, pointerEvents: "none" }}>
         <span style={{ fontSize: "0.6rem", fontWeight: 900, letterSpacing: "0.12em", color: C.textLight }}>VS</span>
       </div>
       <TeamRow team={{ name: matchup.team2_name, seed: matchup.team2_seed, region: matchup.region }}
-        selected={pick === matchup.team2_name} onPick={() => !locked && onPick(matchup.id, matchup.team2_name)}
+        selected={pick === matchup.team2_name} onPick={pickTeam2}
         locked={locked} won={team2Won} lost={gameComplete && !team2Won}
         correct={pick === matchup.team2_name && team2Won} />
-    </div>
-  );
-}
-
-function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
-  let bg = "transparent";
-  let borderColor = "transparent";
-  if (correct) { bg = "rgba(22,163,74,0.08)"; borderColor = C.green; }
-  else if (selected && won === false && lost) { bg = C.redFade; borderColor = C.red; }
-  else if (selected) { bg = C.ncaaBlueFade; borderColor = C.ncaaBlue; }
-
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 14, padding: "18px 16px", minHeight: 64,
-      background: bg, borderLeft: `3px solid ${borderColor}`,
-      cursor: locked ? "default" : "pointer",
-      opacity: lost && !selected ? 0.4 : 1,
-      transition: "background 0.15s",
-    }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPick(); }}>
-      <div style={{
-        minWidth: 36, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
-        background: team.seed <= 2 ? C.ncaaBlueFadeMed : C.surfaceGray,
-        border: `1px solid ${team.seed <= 2 ? "rgba(0,94,184,0.3)" : C.border}`,
-        fontSize: "0.72rem", fontWeight: 800, color: team.seed <= 2 ? C.ncaaBlue : C.textMuted, flexShrink: 0,
-      }}>#{team.seed}</div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: "0.92rem", fontWeight: 700, color: C.text }}>{team.name}</div>
-        <div style={{ fontSize: "0.68rem", color: C.textMuted, marginTop: 1 }}>{team.region} · Seed {team.seed}</div>
-      </div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-        {won && <span style={{ background: C.green, color: "#fff", padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>WON</span>}
-        {lost && <span style={{ background: C.redFade, color: C.red, padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>OUT</span>}
-        {selected && !won && !lost && <div style={{ background: C.ncaaBlue, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ Picked</div>}
-        {correct && <div style={{ background: C.green, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ +1pt</div>}
-      </div>
     </div>
   );
 }
