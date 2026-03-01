@@ -908,7 +908,7 @@ function MatchupCard({ matchup, pick, onPick, locked, espnWinners }) {
         selected={pick === matchup.team1_name} onPick={() => !locked && onPick(matchup.id, matchup.team1_name)}
         locked={locked} won={team1Won} lost={gameComplete && !team1Won}
         correct={pick === matchup.team1_name && team1Won} />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", borderTop: `1px solid ${C.borderLight}`, borderBottom: `1px solid ${C.borderLight}`, padding: "4px 0", background: C.surfaceGray }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", borderTop: `1px solid ${C.borderLight}`, borderBottom: `1px solid ${C.borderLight}`, padding: "2px 0", background: C.surfaceGray, pointerEvents: "none" }}>
         <span style={{ fontSize: "0.6rem", fontWeight: 900, letterSpacing: "0.12em", color: C.textLight }}>VS</span>
       </div>
       <TeamRow team={{ name: matchup.team2_name, seed: matchup.team2_seed, region: matchup.region }}
@@ -928,7 +928,7 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
 
   return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
+      display: "flex", alignItems: "center", gap: 14, padding: "18px 16px", minHeight: 64,
       background: bg, borderLeft: `3px solid ${borderColor}`,
       cursor: locked ? "default" : "pointer",
       opacity: lost && !selected ? 0.4 : 1,
