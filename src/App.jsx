@@ -439,8 +439,9 @@ function CreateGroup({ session, onCreate, onBack, showToast }) {
         body: matchupRows,
       });
       setCreated({ ...group, code });
-    } catch (err) {
-      showToast("Error creating group: " + err.message, "error");
+   } catch (err) {
+      showToast("Error: " + JSON.stringify(err.message || err), "error");
+      console.error("Full error:", err);
     } finally {
       setLoading(false);
     }
