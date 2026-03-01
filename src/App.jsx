@@ -729,11 +729,16 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
     const prev = myPicks[matchupId];
     setMyPicks(p => ({ ...p, [matchupId]: teamName }));
     try {
-      await supabase("picks", {
-        method: "POST", token: session.token,
-        prefer: "return=minimal,resolution=merge-duplicates",
-        headers: { "on_conflict": "user_id,matchup_id" },
-        body: { user_id: session.user.id, matchup_id: matchupId, picked_team: teamName, updated_at: new Date().toISOString() },
+      await fetch(`${SUPABASE_URL}/rest/v1/picks`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${session.token}`,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates,return=minimal",
+          "on_conflict": "user_id,matchup_id",
+        },
+        body: JSON.stringify({ user_id: session.user.id, matchup_id: matchupId, picked_team: teamName, updated_at: new Date().toISOString() }),
       });
     } catch (err) {
       setMyPicks(p => ({ ...p, [matchupId]: prev }));
