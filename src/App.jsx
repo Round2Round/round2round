@@ -108,8 +108,18 @@ function useCountdown(target) {
 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen] = useState("landing");
-  const [session, setSession] = useState(null); // { token, user, profile }
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem("r2r_session");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [screen, setScreen] = useState(() => {
+    try {
+      const saved = localStorage.getItem("r2r_session");
+      return saved ? "dashboard" : "landing";
+    } catch { return "landing"; }
+  });
   const [activeGroup, setActiveGroup] = useState(null);
   const [activeTab, setActiveTab] = useState("picks");
   const [authMode, setAuthMode] = useState("login");
@@ -120,12 +130,22 @@ export default function App() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const handleLogout = () => { setSession(null); setScreen("landing"); setActiveGroup(null); };
+  const saveSession = (sess) => {
+    localStorage.setItem("r2r_session", JSON.stringify(sess));
+    setSession(sess);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("r2r_session");
+    setSession(null);
+    setScreen("landing");
+    setActiveGroup(null);
+  };
 
   if (screen === "landing") return <Landing onLogin={() => setScreen("auth")} />;
   if (screen === "auth") return (
     <Auth mode={authMode} setMode={setAuthMode}
-      onSuccess={(sess) => { setSession(sess); setScreen("dashboard"); }}
+      onSuccess={(sess) => { saveSession(sess); setScreen("dashboard"); }}
       showToast={showToast} />
   );
   if (screen === "create") return (
