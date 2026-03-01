@@ -640,6 +640,9 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
   const [espnWinners, setEspnWinners] = useState({});
   const [scoringLoading, setScoringLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [testWinners, setTestWinners] = useState({});
+  const handleTestWinner = (name) => setTestWinners(w => ({ ...w, [name]: true }));
+  const handleClearTest = () => setTestWinners({});
 
   useEffect(() => { loadGroupData(); }, [group.id]);
 
@@ -729,20 +732,17 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
     const prev = myPicks[matchupId];
     setMyPicks(p => ({ ...p, [matchupId]: teamName }));
     try {
-      // Check if pick already exists
       const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}&select=id`, {
         headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}` },
       });
       const existing = await checkRes.json();
       if (existing?.length) {
-        // Update existing pick
         await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}`, {
           method: "PATCH",
           headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
           body: JSON.stringify({ picked_team: teamName, updated_at: new Date().toISOString() }),
         });
       } else {
-        // Insert new pick
         await fetch(`${SUPABASE_URL}/rest/v1/picks`, {
           method: "POST",
           headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json", "Prefer": "return=minimal" },
@@ -806,13 +806,15 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
             {!loading && activeTab === "picks" && (
               <PicksTab matchups={matchups} myPicks={myPicks} onPick={handlePick}
                 picksCount={picksCount} total={total} countdown={countdown}
-                deadlinePassed={deadlinePassed} espnWinners={espnWinners} />
+                deadlinePassed={deadlinePassed} espnWinners={{ ...espnWinners, ...testWinners }} />
             )}
             {!loading && activeTab === "leaderboard" && (
               <LeaderboardTab leaderboard={scoredLeaderboard} group={group}
                 memberCount={memberCount} deadlinePassed={deadlinePassed}
                 scoringLoading={scoringLoading} lastUpdated={lastUpdated}
-                onRefresh={refreshScores} espnWinners={espnWinners} />
+                onRefresh={refreshScores} espnWinners={espnWinners}
+                testWinners={testWinners} onTestWinner={handleTestWinner}
+                onClearTest={handleClearTest} />
             )}
           </div>
         </div>
@@ -912,7 +914,7 @@ function MatchupCard({ matchup, pick, onPick, locked, espnWinners }) {
         locked={locked} won={team1Won} lost={gameComplete && !team1Won}
         correct={pick === matchup.team1_name && team1Won} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", borderTop: `1px solid ${C.borderLight}`, borderBottom: `1px solid ${C.borderLight}`, padding: "2px 0", background: C.surfaceGray, pointerEvents: "none" }}>
-        <span style={{ fontSize: "0.6rem", fontWeight: 900, letterSpacing: "0.12em", color: C.textLight }}>VS</span>
+        <span style={{ fontSize: "0.6rem", fontWeight: 900, letterSpacing: "0.12em", color: C.textLight, pointerEvents: "none" }}>VS</span>
       </div>
       <TeamRow team={{ name: matchup.team2_name, seed: matchup.team2_seed, region: matchup.region }}
         selected={pick === matchup.team2_name} onPick={pickTeam2}
@@ -922,9 +924,70 @@ function MatchupCard({ matchup, pick, onPick, locked, espnWinners }) {
   );
 }
 
+// ─── TEAM ROW ─────────────────────────────────────────────────────────────────
+function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
+  let bg = "transparent";
+  let borderColor = "transparent";
+  if (correct) { bg = "rgba(22,163,74,0.08)"; borderColor = C.green; }
+  else if (selected && lost) { bg = C.redFade; borderColor = C.red; }
+  else if (selected) { bg = C.ncaaBlueFade; borderColor = C.ncaaBlue; }
+
+  const handleTouch = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!locked) onPick(e);
+  };
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 14, padding: "18px 16px", minHeight: 64,
+      background: bg, borderLeft: `3px solid ${borderColor}`,
+      cursor: locked ? "default" : "pointer",
+      opacity: lost && !selected ? 0.4 : 1,
+      transition: "background 0.15s",
+      WebkitTapHighlightColor: "transparent",
+      userSelect: "none",
+    }}
+      onTouchEnd={handleTouch}
+      onClick={(e) => { if (!("ontouchstart" in window)) { e.preventDefault(); if (!locked) onPick(e); } }}
+    >
+      <div style={{
+        minWidth: 36, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
+        background: team.seed <= 2 ? C.ncaaBlueFadeMed : C.surfaceGray,
+        border: `1px solid ${team.seed <= 2 ? "rgba(0,94,184,0.3)" : C.border}`,
+        fontSize: "0.72rem", fontWeight: 800, color: team.seed <= 2 ? C.ncaaBlue : C.textMuted, flexShrink: 0,
+        pointerEvents: "none",
+      }}>#{team.seed}</div>
+      <div style={{ flex: 1, pointerEvents: "none" }}>
+        <div style={{ fontSize: "0.92rem", fontWeight: 700, color: C.text }}>{team.name}</div>
+        <div style={{ fontSize: "0.68rem", color: C.textMuted, marginTop: 1 }}>{team.region} · Seed {team.seed}</div>
+      </div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0, pointerEvents: "none" }}>
+        {won && <span style={{ background: C.green, color: "#fff", padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>WON</span>}
+        {lost && <span style={{ background: C.redFade, color: C.red, padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>OUT</span>}
+        {selected && !won && !lost && <div style={{ background: C.ncaaBlue, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ Picked</div>}
+        {correct && <div style={{ background: C.green, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ +1pt</div>}
+      </div>
+    </div>
+  );
+}
+
 // ─── LEADERBOARD ─────────────────────────────────────────────────────────────
-function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scoringLoading, lastUpdated, onRefresh, espnWinners }) {
-  const hasScores = Object.keys(espnWinners).length > 0;
+function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scoringLoading, lastUpdated, onRefresh, espnWinners, testWinners, onTestWinner, onClearTest }) {
+  const [testInput, setTestInput] = useState("");
+  const allWinners = { ...espnWinners, ...(testWinners || {}) };
+  const hasScores = Object.keys(allWinners).length > 0;
+
+  const scoredLeaderboard = leaderboard
+    .map(p => {
+      if (!p.picks?.length || !hasScores) return { ...p, points: 0, correct: 0 };
+      const roundPoints = ROUND_POINTS[(group.current_round || 1) - 1];
+      let correct = 0;
+      p.picks.forEach(pick => { if (teamNameMatch(pick.picked_team, allWinners)) correct++; });
+      return { ...p, points: correct * roundPoints, correct };
+    })
+    .sort((a, b) => b.points - a.points);
+
   return (
     <div style={{ paddingTop: 20 }}>
       {!deadlinePassed && (
@@ -937,16 +1000,43 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scori
         </div>
       )}
 
-      {/* ESPN Score status */}
+      {/* TEST SCORING PANEL */}
+      <div style={{ background: "#fffbeb", border: "2px dashed #f59e0b", borderRadius: 12, padding: "16px", marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#92400e", marginBottom: 4 }}>🧪 Test Scoring (Admin Only)</div>
+        <div style={{ fontSize: "0.75rem", color: "#92400e", marginBottom: 12 }}>Type a team name to simulate them winning. Scores update instantly.</div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <input
+            style={{ ...s.input, marginBottom: 0, flex: 1, fontSize: "0.85rem", padding: "8px 10px" }}
+            placeholder="e.g. Connecticut"
+            value={testInput}
+            onChange={e => setTestInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && testInput.trim()) { onTestWinner(testInput.trim()); setTestInput(""); } }}
+          />
+          <button style={{ ...s.btnPrimary, padding: "8px 14px", fontSize: "0.82rem" }}
+            onClick={() => { if (testInput.trim()) { onTestWinner(testInput.trim()); setTestInput(""); } }}>
+            Add
+          </button>
+        </div>
+        {Object.keys(testWinners || {}).length > 0 && (
+          <div>
+            <div style={{ fontSize: "0.72rem", color: "#92400e", marginBottom: 6, fontWeight: 600 }}>Simulated winners:</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              {Object.keys(testWinners).map(t => (
+                <span key={t} style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 6, padding: "3px 10px", fontSize: "0.75rem", fontWeight: 600, color: "#92400e" }}>✓ {t}</span>
+              ))}
+            </div>
+            <button style={{ ...s.btnOutline, padding: "6px 14px", fontSize: "0.75rem", borderColor: "#f59e0b", color: "#92400e" }} onClick={onClearTest}>
+              Clear All
+            </button>
+          </div>
+        )}
+      </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: "0.78rem", color: C.textMuted }}>
-          {scoringLoading ? "⟳ Fetching live scores..." :
-           hasScores ? `⚡ ESPN scores live` :
-           "No games completed yet"}
+          {scoringLoading ? "⟳ Fetching live scores..." : Object.keys(espnWinners).length > 0 ? "⚡ ESPN scores live" : "No games completed yet"}
           {lastUpdated && !scoringLoading && (
-            <span style={{ marginLeft: 6, color: C.textLight }}>
-              · Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
+            <span style={{ marginLeft: 6, color: C.textLight }}>· {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           )}
         </div>
         <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.ncaaBlue, padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: "0.72rem", fontWeight: 600, fontFamily: "inherit" }}
@@ -964,8 +1054,8 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scori
         ))}
       </div>
 
-      {leaderboard.length === 0 && <div style={s.emptyBox}>No players yet.</div>}
-      {leaderboard.map((p, i) => (
+      {scoredLeaderboard.length === 0 && <div style={s.emptyBox}>No players yet.</div>}
+      {scoredLeaderboard.map((p, i) => (
         <div key={p.id} style={{
           display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
           background: p.isMe ? C.ncaaBlueFade : C.surface,
