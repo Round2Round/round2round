@@ -527,23 +527,42 @@ function JoinGroup({ session, onJoin, onBack, showToast }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleJoin = async () => {
+const handleJoin = async () => {
     if (code.length < 3) return;
     setLoading(true);
     try {
-      const groups = await supabase(`groups?code=eq.${code}&select=*`, { token: session.token });
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/groups?code=eq.${code}&select=*`, {
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${session.token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const groups = await res.json();
       if (!groups?.length) throw new Error("Group not found. Check the code and try again.");
       const group = groups[0];
-      // Check not already a member
-      const existing = await supabase(`group_members?group_id=eq.${group.id}&user_id=eq.${session.user.id}`, { token: session.token });
+      const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/group_members?group_id=eq.${group.id}&user_id=eq.${session.user.id}`, {
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${session.token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const existing = await existingRes.json();
       if (existing?.length) { onJoin(group); return; }
-      await supabase("group_members", {
-        method: "POST", token: session.token,
-        body: { group_id: group.id, user_id: session.user.id },
+      await fetch(`${SUPABASE_URL}/rest/v1/group_members`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${session.token}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal",
+        },
+        body: JSON.stringify({ group_id: group.id, user_id: session.user.id }),
       });
       onJoin(group);
     } catch (err) {
-      showToast(err.message, "error");
+      showToast("Error: " + (err.message || JSON.stringify(err)), "error");
     } finally {
       setLoading(false);
     }
