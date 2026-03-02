@@ -660,6 +660,8 @@ function JoinGroup({ session, onJoin, onBack, showToast }) {
 
 // ─── GROUP SCREEN ─────────────────────────────────────────────────────────────
 function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToast }) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [matchups, setMatchups] = useState([]);
   const [myPicks, setMyPicks] = useState({});
   const [leaderboard, setLeaderboard] = useState([]);
@@ -756,31 +758,40 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
     } catch { /* silent */ }
   };
 
-  const handlePick = async (matchupId, teamName) => {
+const handlePick = (matchupId, teamName) => {
     if (round?.is_locked) return;
-    const prev = myPicks[matchupId];
+    setSaved(false);
     setMyPicks(p => ({ ...p, [matchupId]: teamName }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}&select=id`, {
-        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}` },
-      });
-      const existing = await checkRes.json();
-      if (existing?.length) {
-        await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}`, {
-          method: "PATCH",
-          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ picked_team: teamName, updated_at: new Date().toISOString() }),
+      for (const [matchupId, teamName] of Object.entries(myPicks)) {
+        const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}&select=id`, {
+          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}` },
         });
-      } else {
-        await fetch(`${SUPABASE_URL}/rest/v1/picks`, {
-          method: "POST",
-          headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json", "Prefer": "return=minimal" },
-          body: JSON.stringify({ user_id: session.user.id, matchup_id: matchupId, picked_team: teamName, updated_at: new Date().toISOString() }),
-        });
+        const existing = await checkRes.json();
+        if (existing?.length) {
+          await fetch(`${SUPABASE_URL}/rest/v1/picks?user_id=eq.${session.user.id}&matchup_id=eq.${matchupId}`, {
+            method: "PATCH",
+            headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ picked_team: teamName, updated_at: new Date().toISOString() }),
+          });
+        } else {
+          await fetch(`${SUPABASE_URL}/rest/v1/picks`, {
+            method: "POST",
+            headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json", "Prefer": "return=minimal" },
+            body: JSON.stringify({ user_id: session.user.id, matchup_id: matchupId, picked_team: teamName, updated_at: new Date().toISOString() }),
+          });
+        }
       }
+      setSaved(true);
+      showToast("Picks saved! 🏀");
     } catch (err) {
-      setMyPicks(p => ({ ...p, [matchupId]: prev }));
-      showToast("Couldn't save pick: " + err.message, "error");
+      showToast("Couldn't save picks: " + err.message, "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -834,6 +845,7 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
             {loading && <div style={{ padding: "40px 0", textAlign: "center", color: C.textMuted }}>Loading...</div>}
             {!loading && activeTab === "picks" && (
               <PicksTab matchups={matchups} myPicks={myPicks} onPick={handlePick}
+                onSave={handleSave} saving={saving} saved={saved}
                 picksCount={picksCount} total={total} countdown={countdown}
                 deadlinePassed={deadlinePassed} espnWinners={{ ...espnWinners, ...testWinners }} />
             )}
@@ -849,11 +861,12 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
         </div>
       </div>
 
-      {activeTab === "picks" && !deadlinePassed && (
+{activeTab === "picks" && !deadlinePassed && (
         <div style={s.floater}>
-          <div style={{ ...s.btnPrimary, width: "100%", padding: "15px", fontSize: "1rem", textAlign: "center", opacity: picksCount === total ? 1 : 0.45, boxSizing: "border-box" }}>
-            {picksCount < total ? `${total - picksCount} game${total - picksCount !== 1 ? "s" : ""} remaining` : "✓ All picks submitted!"}
-          </div>
+          <button style={{ ...s.btnPrimary, width: "100%", padding: "15px", fontSize: "1rem", textAlign: "center", boxSizing: "border-box", opacity: saving ? 0.6 : 1 }}
+            onClick={onSave} disabled={saving}>
+            {saving ? "Saving..." : saved ? "✓ Picks Saved!" : "Save My Picks"}
+          </button>
         </div>
       )}
     </div>
@@ -861,7 +874,7 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
 }
 
 // ─── PICKS TAB ────────────────────────────────────────────────────────────────
-function PicksTab({ matchups, myPicks, onPick, picksCount, total, countdown, deadlinePassed, espnWinners }) {
+function PicksTab({ matchups, myPicks, onPick, onSave, saving, saved, picksCount, total, countdown, deadlinePassed, espnWinners }) {
   return (
     <div style={{ paddingTop: 20 }}>
       {!deadlinePassed ? (
