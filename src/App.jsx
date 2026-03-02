@@ -87,11 +87,10 @@ async function fetchESPNWinners() {
 // Handles cases like "Iowa St." vs "Iowa State", "UConn" vs "Connecticut"
 function teamNameMatch(pickName, espnWinners) {
   if (!pickName) return false;
-  const pick = pickName.toLowerCase().trim();
+  const pick = pickName.toLowerCase().trim().replace(/\.$/, "");
   return Object.keys(espnWinners).some(espnName => {
-    const espn = espnName.toLowerCase().trim();
-    return espn.includes(pick) || pick.includes(espn) ||
-      pick.replace(/\.$/, "") === espn.replace(/\.$/, "");
+    const espn = espnName.toLowerCase().trim().replace(/\.$/, "");
+    return espn === pick;
   });
 }
 
