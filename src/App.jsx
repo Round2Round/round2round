@@ -846,13 +846,13 @@ const handlePick = (matchupId, teamName) => {
               <PicksTab matchups={matchups} myPicks={myPicks} onPick={handlePick}
                 onSave={handleSave} saving={saving} saved={saved}
                 picksCount={picksCount} total={total} countdown={countdown}
-                deadlinePassed={deadlinePassed} espnWinners={{ ...espnWinners, ...testWinners }} />
+                deadlinePassed={deadlinePassed} espnWinners={Object.keys(testWinners).length > 0 ? testWinners : espnWinners} />
             )}
             {!loading && activeTab === "leaderboard" && (
               <LeaderboardTab leaderboard={scoredLeaderboard} group={group}
                 memberCount={memberCount} deadlinePassed={deadlinePassed}
                 scoringLoading={scoringLoading} lastUpdated={lastUpdated}
-                onRefresh={refreshScores} espnWinners={espnWinners}
+                onRefresh={refreshScores} espnWinners={Object.keys(testWinners).length > 0 ? testWinners : espnWinners}
                 testWinners={testWinners} onTestWinner={handleTestWinner}
                 onClearTest={handleClearTest} />
             )}
