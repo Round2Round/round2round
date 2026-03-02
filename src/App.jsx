@@ -191,6 +191,25 @@ export default function App() {
     setSession(sess);
   };
 
+  const refreshSession = async (currentSession) => {
+    try {
+      const saved = localStorage.getItem("r2r_session");
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (!parsed?.refresh_token) return null;
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { "apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: parsed.refresh_token }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const newSession = { ...parsed, token: data.access_token, refresh_token: data.refresh_token };
+      localStorage.setItem("r2r_session", JSON.stringify(newSession));
+      setSession(newSession);
+      return newSession;
+    } catch { return null; }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("r2r_session");
     setSession(null);
@@ -337,7 +356,7 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
         const data = await authRequest("token?grant_type=password", { email, password });
         const token = data.access_token;
         const profiles = await supabase(`profiles?id=eq.${data.user.id}&select=*`, { token });
-        onSuccess({ token, user: data.user, profile: profiles?.[0] || { display_name: email.split("@")[0] } });
+        onSuccess({ token, refresh_token: data.refresh_token, user: data.user, profile: profiles?.[0] || { display_name: email.split("@")[0] } });
         showToast("Welcome back!");
       }
     } catch (err) {
@@ -400,8 +419,18 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
       const ids = members.map(m => m.group_id).join(",");
       const gs = await supabase(`groups?id=in.(${ids})&select=*&order=created_at.desc`, { token: session.token });
       setGroups(gs || []);
-    } catch (err) {
-      showToast("Couldn't load groups: " + err.message, "error");
+} catch (err) {
+      if (err.message.includes("JWT") || err.message.includes("expired") || err.message.includes("token")) {
+        const newSession = await refreshSession();
+        if (newSession) {
+          loadGroups();
+        } else {
+          handleLogout();
+          showToast("Session expired — please sign in again", "error");
+        }
+      } else {
+        showToast("Couldn't load groups: " + err.message, "error");
+      }
     } finally {
       setLoading(false);
     }
