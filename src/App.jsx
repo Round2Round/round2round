@@ -734,20 +734,18 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
     }
   };
 
-  const loadLeaderboard = async (currentRound, members) => {
+const loadLeaderboard = async (currentRound, members) => {
     try {
       if (!members?.length) return;
       const profiles = await supabase(`profiles?id=in.(${members.map(m => m.user_id).join(",")})&select=*`, { token: session.token });
-
-      // Load picks for all members if round is locked
       let allPicks = [];
-      if (currentRound && matchups.length > 0) {
-        const pickIds = matchups.map(m => m.id).join(",");
+      if (currentRound) {
+        const mps = await supabase(`matchups?round_id=eq.${currentRound.id}&select=id`, { token: session.token });
+        const pickIds = (mps || []).map(m => m.id).join(",");
         if (pickIds) {
           allPicks = await supabase(`picks?matchup_id=in.(${pickIds})&select=*`, { token: session.token }) || [];
         }
       }
-
       const lb = (profiles || []).map(p => ({
         id: p.id,
         name: p.display_name,
