@@ -957,36 +957,6 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scori
         </div>
       )}
 
-      {/* TEST SCORING PANEL */}
-      <div style={{ background: "#fffbeb", border: "2px dashed #f59e0b", borderRadius: 12, padding: "16px", marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#92400e", marginBottom: 4 }}>🧪 Test Scoring (Admin Only)</div>
-        <div style={{ fontSize: "0.75rem", color: "#92400e", marginBottom: 12 }}>Type a team name to simulate them winning. Scores update instantly.</div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          <input
-            style={{ ...s.input, marginBottom: 0, flex: 1, fontSize: "0.85rem", padding: "8px 10px" }}
-            placeholder="e.g. Connecticut"
-            value={testInput}
-            onChange={e => setTestInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && testInput.trim()) { onTestWinner(testInput.trim()); setTestInput(""); } }}
-          />
-          <button style={{ ...s.btnPrimary, padding: "8px 14px", fontSize: "0.82rem" }}
-            onClick={() => { if (testInput.trim()) { onTestWinner(testInput.trim()); setTestInput(""); } }}>
-            Add
-          </button>
-        </div>
-        {Object.keys(testWinners || {}).length > 0 && (
-          <div>
-            <div style={{ fontSize: "0.72rem", color: "#92400e", marginBottom: 6, fontWeight: 600 }}>Simulated winners:</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-              {Object.keys(testWinners).map(t => (
-                <span key={t} style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 6, padding: "3px 10px", fontSize: "0.75rem", fontWeight: 600, color: "#92400e" }}>✓ {t}</span>
-              ))}
-            </div>
-            <button style={{ ...s.btnOutline, padding: "6px 14px", fontSize: "0.75rem", borderColor: "#f59e0b", color: "#92400e" }} onClick={onClearTest}>Clear All</button>
-          </div>
-        )}
-      </div>
-
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: "0.78rem", color: C.textMuted }}>
           {scoringLoading ? "⟳ Fetching live scores..." : Object.keys(espnWinners).length > 0 && Object.keys(testWinners || {}).length === 0 ? "⚡ ESPN scores live" : Object.keys(testWinners || {}).length > 0 ? "🧪 Test mode active" : "No games completed yet"}
