@@ -350,7 +350,7 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
           prefer: "return=representation",
           body: { id: userId, display_name: name || email.split("@")[0] },
         });
-        onSuccess({ token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
+       onSuccess({ token, refresh_token: data.refresh_token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
         showToast("Account created! Welcome to R2R 🏀");
       } else {
         const data = await authRequest("token?grant_type=password", { email, password });
