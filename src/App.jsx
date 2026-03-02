@@ -41,11 +41,9 @@ function randomCode() {
 }
 
 // ─── ESPN API ─────────────────────────────────────────────────────────────────
-// Fetches completed NCAA tournament games from ESPN
-// Returns a map of { "Team Name": true } for all teams that have WON a game
 async function fetchESPNWinners() {
   try {
-    // Only fetch during tournament dates
+    // Only fetch during tournament dates (March 19 - April 7, 2026)
     const now = new Date();
     const tournamentStart = new Date("2026-03-19T00:00:00Z");
     const tournamentEnd = new Date("2026-04-07T23:59:59Z");
@@ -85,13 +83,11 @@ async function fetchESPNWinners() {
   }
 }
 
-// Fuzzy match: checks if a pick name matches an ESPN team name
-// Handles cases like "Iowa St." vs "Iowa State", "UConn" vs "Connecticut"
-function teamNameMatch(pickName, espnWinners) {
-  if (!pickName) return false;
+function teamNameMatch(pickName, winners) {
+  if (!pickName || !winners) return false;
   const pick = pickName.toLowerCase().trim().replace(/\.$/, "");
-  return Object.keys(espnWinners).some(espnName => {
-    const espn = espnName.toLowerCase().trim().replace(/\.$/, "");
+  return Object.keys(winners).some(w => {
+    const espn = w.toLowerCase().trim().replace(/\.$/, "");
     return espn === pick;
   });
 }
@@ -141,12 +137,11 @@ const C = {
   ncaaBlue: "#005eb8", ncaaBlueDark: "#004a94", ncaaBlueLight: "#1a73d4",
   ncaaBlueFade: "rgba(0,94,184,0.08)", ncaaBlueFadeMed: "rgba(0,94,184,0.15)",
   navy: "#001a3d", navyMid: "#002a5c",
-  red: "#cc0000", redLight: "#e53333", redFade: "rgba(204,0,0,0.08)",
-  bg: "#f4f6fa", bgWhite: "#ffffff", surface: "#ffffff",
+  red: "#cc0000", redFade: "rgba(204,0,0,0.08)",
+  bg: "#f4f6fa", surface: "#ffffff",
   surfaceGray: "#f8f9fc", border: "#dde3ef", borderLight: "#eef1f7",
   text: "#0d1b2e", textMid: "#3a4a60", textMuted: "#6b7a95", textLight: "#9aa5bc",
   green: "#16a34a", greenFade: "rgba(22,163,74,0.09)",
-  gold: "#f59e0b",
 };
 
 // ─── COUNTDOWN HOOK ───────────────────────────────────────────────────────────
@@ -166,16 +161,10 @@ function useCountdown(target) {
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState(() => {
-    try {
-      const saved = localStorage.getItem("r2r_session");
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
+    try { const s = localStorage.getItem("r2r_session"); return s ? JSON.parse(s) : null; } catch { return null; }
   });
   const [screen, setScreen] = useState(() => {
-    try {
-      const saved = localStorage.getItem("r2r_session");
-      return saved ? "dashboard" : "landing";
-    } catch { return "landing"; }
+    try { return localStorage.getItem("r2r_session") ? "dashboard" : "landing"; } catch { return "landing"; }
   });
   const [activeGroup, setActiveGroup] = useState(null);
   const [activeTab, setActiveTab] = useState("picks");
@@ -192,7 +181,7 @@ export default function App() {
     setSession(sess);
   };
 
-  const refreshSession = async (currentSession) => {
+  const refreshSession = async () => {
     try {
       const saved = localStorage.getItem("r2r_session");
       const parsed = saved ? JSON.parse(saved) : null;
@@ -230,30 +219,11 @@ export default function App() {
         }}>{toast.msg}</div>
       )}
       {screen === "landing" && <Landing onLogin={() => setScreen("auth")} />}
-      {screen === "auth" && (
-        <Auth mode={authMode} setMode={setAuthMode}
-          onSuccess={(sess) => { saveSession(sess); setScreen("dashboard"); }}
-          showToast={showToast} />
-      )}
-      {screen === "create" && (
-        <CreateGroup session={session} onCreate={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Group created! 🎉"); }}
-          onBack={() => setScreen("dashboard")} showToast={showToast} />
-      )}
-      {screen === "join" && (
-        <JoinGroup session={session} onJoin={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Joined group! 🏀"); }}
-          onBack={() => setScreen("dashboard")} showToast={showToast} />
-      )}
-      {screen === "dashboard" && !activeGroup && (
-        <Dashboard session={session} onSelectGroup={(g) => setActiveGroup(g)}
-          onCreateGroup={() => setScreen("create")} onJoinGroup={() => setScreen("join")}
-          onLogout={handleLogout} showToast={showToast} />
-      )}
-      {screen === "dashboard" && activeGroup && (
-        <GroupScreen group={activeGroup} session={session}
-          activeTab={activeTab} setActiveTab={setActiveTab}
-          onBack={() => { setActiveGroup(null); setActiveTab("picks"); }}
-          showToast={showToast} />
-      )}
+      {screen === "auth" && <Auth mode={authMode} setMode={setAuthMode} onSuccess={(sess) => { saveSession(sess); setScreen("dashboard"); }} showToast={showToast} />}
+      {screen === "create" && <CreateGroup session={session} onCreate={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Group created! 🎉"); }} onBack={() => setScreen("dashboard")} showToast={showToast} />}
+      {screen === "join" && <JoinGroup session={session} onJoin={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Joined group! 🏀"); }} onBack={() => setScreen("dashboard")} showToast={showToast} />}
+      {screen === "dashboard" && !activeGroup && <Dashboard session={session} onSelectGroup={(g) => setActiveGroup(g)} onCreateGroup={() => setScreen("create")} onJoinGroup={() => setScreen("join")} onLogout={handleLogout} showToast={showToast} refreshSession={refreshSession} handleLogout={handleLogout} />}
+      {screen === "dashboard" && activeGroup && <GroupScreen group={activeGroup} session={session} activeTab={activeTab} setActiveTab={setActiveTab} onBack={() => { setActiveGroup(null); setActiveTab("picks"); }} showToast={showToast} />}
     </div>
   );
 }
@@ -351,7 +321,7 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
           prefer: "return=representation",
           body: { id: userId, display_name: name || email.split("@")[0] },
         });
-       onSuccess({ token, refresh_token: data.refresh_token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
+        onSuccess({ token, refresh_token: data.refresh_token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
         showToast("Account created! Welcome to R2R 🏀");
       } else {
         const data = await authRequest("token?grant_type=password", { email, password });
@@ -386,10 +356,8 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
             <label style={s.label}>Email Address</label>
             <input style={s.input} placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
             <label style={s.label}>Password</label>
-            <input style={s.input} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSubmit()} />
-            <button style={{ ...s.btnPrimary, width: "100%", padding: "14px", marginTop: 8, fontSize: "1rem", opacity: loading ? 0.6 : 1 }}
-              onClick={handleSubmit} disabled={loading}>
+            <input style={s.input} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()} />
+            <button style={{ ...s.btnPrimary, width: "100%", padding: "14px", marginTop: 8, fontSize: "1rem", opacity: loading ? 0.6 : 1 }} onClick={handleSubmit} disabled={loading}>
               {loading ? "Please wait..." : mode === "login" ? "Sign In →" : "Create Account →"}
             </button>
           </div>
@@ -406,7 +374,7 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogout, showToast }) {
+function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogout, showToast, refreshSession, handleLogout }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -420,7 +388,7 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
       const ids = members.map(m => m.group_id).join(",");
       const gs = await supabase(`groups?id=in.(${ids})&select=*&order=created_at.desc`, { token: session.token });
       setGroups(gs || []);
-} catch (err) {
+    } catch (err) {
       if (err.message.includes("JWT") || err.message.includes("expired") || err.message.includes("token")) {
         const newSession = await refreshSession();
         if (newSession) {
@@ -507,29 +475,14 @@ function CreateGroup({ session, onCreate, onBack, showToast }) {
       const code = randomCode();
       const res = await fetch(`${SUPABASE_URL}/rest/v1/groups`, {
         method: "POST",
-        headers: {
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${session.token}`,
-          "Content-Type": "application/json",
-          "Prefer": "return=representation",
-        },
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json", "Prefer": "return=representation" },
         body: JSON.stringify({ name, code, tournament, created_by: session.user.id, current_round: 1 }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || JSON.stringify(err));
-      }
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message || JSON.stringify(err)); }
       const groups = await res.json();
       const group = Array.isArray(groups) ? groups[0] : groups;
-      await supabase("group_members", {
-        method: "POST", token: session.token,
-        body: { group_id: group.id, user_id: session.user.id },
-      });
-      const rounds = await supabase("rounds", {
-        method: "POST", token: session.token,
-        prefer: "return=representation",
-        body: { group_id: group.id, round_number: 1, deadline: "2026-03-20T17:00:00Z", is_locked: false },
-      });
+      await supabase("group_members", { method: "POST", token: session.token, body: { group_id: group.id, user_id: session.user.id } });
+      const rounds = await supabase("rounds", { method: "POST", token: session.token, prefer: "return=representation", body: { group_id: group.id, round_number: 1, deadline: "2026-03-20T17:00:00Z", is_locked: false } });
       const round = Array.isArray(rounds) ? rounds[0] : rounds;
       const matchupRows = [];
       REGIONS.forEach(region => {
@@ -587,8 +540,7 @@ function CreateGroup({ session, onCreate, onBack, showToast }) {
               <button key={opt} style={tournament === opt ? s.toggleOn : s.toggleOff} onClick={() => setTournament(opt)}>{opt}</button>
             ))}
           </div>
-          <button style={{ ...s.btnPrimary, width: "100%", padding: "14px", opacity: name.length < 2 || loading ? 0.4 : 1 }}
-            onClick={handleCreate} disabled={name.length < 2 || loading}>
+          <button style={{ ...s.btnPrimary, width: "100%", padding: "14px", opacity: name.length < 2 || loading ? 0.4 : 1 }} onClick={handleCreate} disabled={name.length < 2 || loading}>
             {loading ? "Creating..." : "Create Group →"}
           </button>
         </div>
@@ -644,13 +596,10 @@ function JoinGroup({ session, onJoin, onBack, showToast }) {
             <h2 style={s.authH2}>Join a Group</h2>
             <p style={{ fontSize: "0.875rem", color: C.textMuted }}>Enter the code from your invite</p>
           </div>
-          <input
-            style={{ ...s.input, textAlign: "center", letterSpacing: "0.3em", fontSize: "1.8rem", fontWeight: 900, textTransform: "uppercase", padding: "16px 14px" }}
+          <input style={{ ...s.input, textAlign: "center", letterSpacing: "0.3em", fontSize: "1.8rem", fontWeight: 900, textTransform: "uppercase", padding: "16px 14px" }}
             placeholder="ABC123" value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={8}
-            onKeyDown={e => e.key === "Enter" && handleJoin()}
-          />
-          <button style={{ ...s.btnPrimary, width: "100%", padding: "14px", opacity: code.length < 3 || loading ? 0.4 : 1 }}
-            onClick={handleJoin} disabled={code.length < 3 || loading}>
+            onKeyDown={e => e.key === "Enter" && handleJoin()} />
+          <button style={{ ...s.btnPrimary, width: "100%", padding: "14px", opacity: code.length < 3 || loading ? 0.4 : 1 }} onClick={handleJoin} disabled={code.length < 3 || loading}>
             {loading ? "Searching..." : "Join Group →"}
           </button>
         </div>
@@ -661,8 +610,6 @@ function JoinGroup({ session, onJoin, onBack, showToast }) {
 
 // ─── GROUP SCREEN ─────────────────────────────────────────────────────────────
 function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToast }) {
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [matchups, setMatchups] = useState([]);
   const [myPicks, setMyPicks] = useState({});
   const [leaderboard, setLeaderboard] = useState([]);
@@ -673,16 +620,16 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
   const [scoringLoading, setScoringLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [testWinners, setTestWinners] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   const handleTestWinner = (name) => setTestWinners(w => ({ ...w, [name]: true }));
   const handleClearTest = () => setTestWinners({});
 
   useEffect(() => { loadGroupData(); }, [group.id]);
 
-  // Refresh ESPN scores every 5 minutes automatically
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (round?.is_locked) refreshScores();
-    }, 5 * 60 * 1000);
+    const interval = setInterval(() => { if (round?.is_locked) refreshScores(); }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [round]);
 
@@ -692,9 +639,7 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
       const winners = await fetchESPNWinners();
       setEspnWinners(winners);
       setLastUpdated(new Date());
-    } catch { /* silent */ } finally {
-      setScoringLoading(false);
-    }
+    } catch { } finally { setScoringLoading(false); }
   };
 
   const loadGroupData = async () => {
@@ -707,7 +652,6 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
       if (currentRound) {
         const mps = await supabase(`matchups?round_id=eq.${currentRound.id}&select=*&order=region.asc`, { token: session.token });
         setMatchups(mps || []);
-
         const pickIds = (mps || []).map(m => m.id).join(",");
         if (pickIds) {
           const picks = await supabase(`picks?user_id=eq.${session.user.id}&matchup_id=in.(${pickIds})&select=*`, { token: session.token });
@@ -719,11 +663,11 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
 
       const members = await supabase(`group_members?group_id=eq.${group.id}&select=user_id`, { token: session.token });
       setMemberCount(members?.length || 0);
-
       await loadLeaderboard(currentRound, members);
 
-// ESPN only active during tournament
-      setEspnWinners({});
+      const winners = await fetchESPNWinners();
+      setEspnWinners(winners);
+      setLastUpdated(new Date());
     } catch (err) {
       showToast("Error loading group: " + err.message, "error");
     } finally {
@@ -732,7 +676,7 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
     }
   };
 
-const loadLeaderboard = async (currentRound, members) => {
+  const loadLeaderboard = async (currentRound, members) => {
     try {
       if (!members?.length) return;
       const profiles = await supabase(`profiles?id=in.(${members.map(m => m.user_id).join(",")})&select=*`, { token: session.token });
@@ -740,21 +684,18 @@ const loadLeaderboard = async (currentRound, members) => {
       if (currentRound) {
         const mps = await supabase(`matchups?round_id=eq.${currentRound.id}&select=id`, { token: session.token });
         const pickIds = (mps || []).map(m => m.id).join(",");
-        if (pickIds) {
-          allPicks = await supabase(`picks?matchup_id=in.(${pickIds})&select=*`, { token: session.token }) || [];
-        }
+        if (pickIds) allPicks = await supabase(`picks?matchup_id=in.(${pickIds})&select=*`, { token: session.token }) || [];
       }
       const lb = (profiles || []).map(p => ({
-        id: p.id,
-        name: p.display_name,
+        id: p.id, name: p.display_name,
         picks: allPicks.filter(pk => pk.user_id === p.id),
         isMe: p.id === session.user.id,
       }));
       setLeaderboard(lb);
-    } catch { /* silent */ }
+    } catch { }
   };
 
-const handlePick = (matchupId, teamName) => {
+  const handlePick = (matchupId, teamName) => {
     if (round?.is_locked) return;
     setSaved(false);
     setMyPicks(p => ({ ...p, [matchupId]: teamName }));
@@ -791,21 +732,7 @@ const handlePick = (matchupId, teamName) => {
     }
   };
 
-  // Calculate scores using ESPN winners
-  const calculateScores = (playerPicks) => {
-    if (!playerPicks?.length || !Object.keys(espnWinners).length) return { points: 0, correct: 0 };
-    const roundPoints = ROUND_POINTS[(group.current_round || 1) - 1];
-    let correct = 0;
-    playerPicks.forEach(pick => {
-      if (teamNameMatch(pick.picked_team, espnWinners)) correct++;
-    });
-    return { points: correct * roundPoints, correct };
-  };
-
-  const scoredLeaderboard = leaderboard
-    .map(p => ({ ...p, ...calculateScores(p.picks) }))
-    .sort((a, b) => b.points - a.points);
-
+  const allWinners = { ...espnWinners, ...testWinners };
   const picksCount = Object.keys(myPicks).length;
   const total = matchups.length;
   const deadline = round?.deadline ? new Date(round.deadline) : new Date("2026-03-20T17:00:00Z");
@@ -843,13 +770,13 @@ const handlePick = (matchupId, teamName) => {
               <PicksTab matchups={matchups} myPicks={myPicks} onPick={handlePick}
                 onSave={handleSave} saving={saving} saved={saved}
                 picksCount={picksCount} total={total} countdown={countdown}
-                deadlinePassed={deadlinePassed} espnWinners={Object.keys(testWinners).length > 0 ? testWinners : espnWinners} />
+                deadlinePassed={deadlinePassed} espnWinners={allWinners} />
             )}
             {!loading && activeTab === "leaderboard" && (
-              <LeaderboardTab leaderboard={scoredLeaderboard} group={group}
+              <LeaderboardTab leaderboard={leaderboard} group={group}
                 memberCount={memberCount} deadlinePassed={deadlinePassed}
                 scoringLoading={scoringLoading} lastUpdated={lastUpdated}
-                onRefresh={refreshScores} espnWinners={Object.keys(testWinners).length > 0 ? testWinners : espnWinners}
+                onRefresh={refreshScores} espnWinners={allWinners}
                 testWinners={testWinners} onTestWinner={handleTestWinner}
                 onClearTest={handleClearTest} />
             )}
@@ -857,7 +784,7 @@ const handlePick = (matchupId, teamName) => {
         </div>
       </div>
 
-{activeTab === "picks" && !deadlinePassed && (
+      {activeTab === "picks" && !deadlinePassed && (
         <div style={s.floater}>
           <button style={{ ...s.btnPrimary, width: "100%", padding: "15px", fontSize: "1rem", textAlign: "center", boxSizing: "border-box", opacity: saving ? 0.6 : 1 }}
             onClick={handleSave} disabled={saving}>
@@ -876,8 +803,8 @@ function PicksTab({ matchups, myPicks, onPick, onSave, saving, saved, picksCount
       {!deadlinePassed ? (
         <div style={s.deadlineBanner}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.green }}>⏰ Picks editable until tipoff</div>
-            <div style={{ fontSize: "0.75rem", color: C.textMuted, marginTop: 2 }}>Saves automatically as you pick</div>
+            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.green }}>⏰ Pick your winners before tipoff</div>
+            <div style={{ fontSize: "0.75rem", color: C.textMuted, marginTop: 2 }}>Hit Save when you're done</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: "1.25rem", fontWeight: 900, color: C.green, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
@@ -921,13 +848,10 @@ function PicksTab({ matchups, myPicks, onPick, onSave, saving, saved, picksCount
           <div key={region} style={{ marginBottom: 32 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 10, borderBottom: `2px solid ${C.ncaaBlue}` }}>
               <span style={{ fontSize: "0.75rem", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: C.ncaaBlue }}>{region} Region</span>
-              <span style={{ fontSize: "0.72rem", color: C.textMuted }}>
-                {regionMatchups.filter(m => myPicks[m.id]).length}/{regionMatchups.length} picked
-              </span>
+              <span style={{ fontSize: "0.72rem", color: C.textMuted }}>{regionMatchups.filter(m => myPicks[m.id]).length}/{regionMatchups.length} picked</span>
             </div>
             {regionMatchups.map(m => (
-              <MatchupCard key={m.id} matchup={m} pick={myPicks[m.id]} onPick={onPick}
-                locked={deadlinePassed} espnWinners={espnWinners} />
+              <MatchupCard key={m.id} matchup={m} pick={myPicks[m.id]} onPick={onPick} locked={deadlinePassed} espnWinners={espnWinners} />
             ))}
           </div>
         );
@@ -970,11 +894,7 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
   else if (selected && lost) { bg = C.redFade; borderColor = C.red; }
   else if (selected) { bg = C.ncaaBlueFade; borderColor = C.ncaaBlue; }
 
-  const handleTouch = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!locked) onPick(e);
-  };
+  const handleTouch = (e) => { e.preventDefault(); e.stopPropagation(); if (!locked) onPick(e); };
 
   return (
     <div style={{
@@ -1001,7 +921,7 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
         <div style={{ fontSize: "0.68rem", color: C.textMuted, marginTop: 1 }}>{team.region} · Seed {team.seed}</div>
       </div>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0, pointerEvents: "none" }}>
-        {won && <span style={{ background: C.green, color: "#fff", padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>WON</span>}
+        {won && !correct && <span style={{ background: C.green, color: "#fff", padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>WON</span>}
         {lost && <span style={{ background: C.redFade, color: C.red, padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>OUT</span>}
         {selected && !won && !lost && <div style={{ background: C.ncaaBlue, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ Picked</div>}
         {correct && <div style={{ background: C.green, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ +1pt</div>}
@@ -1013,15 +933,14 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
 // ─── LEADERBOARD ─────────────────────────────────────────────────────────────
 function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scoringLoading, lastUpdated, onRefresh, espnWinners, testWinners, onTestWinner, onClearTest }) {
   const [testInput, setTestInput] = useState("");
-  const allWinners = { ...espnWinners, ...(testWinners || {}) };
-const hasScores = Object.keys(allWinners).length > 0;
+  const hasScores = Object.keys(espnWinners).length > 0;
 
   const scoredLeaderboard = leaderboard
     .map(p => {
       if (!p.picks?.length || !hasScores) return { ...p, points: 0, correct: 0 };
       const roundPoints = ROUND_POINTS[(group.current_round || 1) - 1];
       let correct = 0;
-      p.picks.forEach(pick => { if (teamNameMatch(pick.picked_team, allWinners)) correct++; });
+      p.picks.forEach(pick => { if (teamNameMatch(pick.picked_team, espnWinners)) correct++; });
       return { ...p, points: correct * roundPoints, correct };
     })
     .sort((a, b) => b.points - a.points);
@@ -1063,19 +982,15 @@ const hasScores = Object.keys(allWinners).length > 0;
                 <span key={t} style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 6, padding: "3px 10px", fontSize: "0.75rem", fontWeight: 600, color: "#92400e" }}>✓ {t}</span>
               ))}
             </div>
-            <button style={{ ...s.btnOutline, padding: "6px 14px", fontSize: "0.75rem", borderColor: "#f59e0b", color: "#92400e" }} onClick={onClearTest}>
-              Clear All
-            </button>
+            <button style={{ ...s.btnOutline, padding: "6px 14px", fontSize: "0.75rem", borderColor: "#f59e0b", color: "#92400e" }} onClick={onClearTest}>Clear All</button>
           </div>
         )}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: "0.78rem", color: C.textMuted }}>
-          {scoringLoading ? "⟳ Fetching live scores..." : Object.keys(espnWinners).length > 0 ? "⚡ ESPN scores live" : "No games completed yet"}
-          {lastUpdated && !scoringLoading && (
-            <span style={{ marginLeft: 6, color: C.textLight }}>· {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-          )}
+          {scoringLoading ? "⟳ Fetching live scores..." : Object.keys(espnWinners).length > 0 && Object.keys(testWinners || {}).length === 0 ? "⚡ ESPN scores live" : Object.keys(testWinners || {}).length > 0 ? "🧪 Test mode active" : "No games completed yet"}
+          {lastUpdated && !scoringLoading && <span style={{ marginLeft: 6, color: C.textLight }}>· {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
         </div>
         <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.ncaaBlue, padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: "0.72rem", fontWeight: 600, fontFamily: "inherit" }}
           onClick={onRefresh} disabled={scoringLoading}>
@@ -1115,12 +1030,8 @@ const hasScores = Object.keys(allWinners).length > 0;
             {p.isMe && <span style={{ background: C.ncaaBlue, color: "#fff", padding: "2px 7px", borderRadius: 4, fontSize: "0.62rem", fontWeight: 700, marginLeft: 6 }}>YOU</span>}
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontWeight: 800, fontSize: "1rem", color: hasScores ? C.ncaaBlue : C.textMuted }}>
-              {hasScores ? `${p.points} pts` : "—"}
-            </div>
-            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>
-              {hasScores ? `${p.correct} correct` : "awaiting games"}
-            </div>
+            <div style={{ fontWeight: 800, fontSize: "1rem", color: hasScores ? C.ncaaBlue : C.textMuted }}>{hasScores ? `${p.points} pts` : "—"}</div>
+            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>{hasScores ? `${p.correct} correct` : "awaiting games"}</div>
           </div>
         </div>
       ))}
