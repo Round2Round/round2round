@@ -722,11 +722,8 @@ function GroupScreen({ group, session, activeTab, setActiveTab, onBack, showToas
 
       await loadLeaderboard(currentRound, members);
 
-      // Fetch ESPN scores
-      setScoringLoading(true);
-      const winners = await fetchESPNWinners();
-      setEspnWinners(winners);
-      setLastUpdated(new Date());
+// ESPN only active during tournament
+      setEspnWinners({});
     } catch (err) {
       showToast("Error loading group: " + err.message, "error");
     } finally {
