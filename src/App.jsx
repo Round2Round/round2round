@@ -864,7 +864,7 @@ const handlePick = (matchupId, teamName) => {
 {activeTab === "picks" && !deadlinePassed && (
         <div style={s.floater}>
           <button style={{ ...s.btnPrimary, width: "100%", padding: "15px", fontSize: "1rem", textAlign: "center", boxSizing: "border-box", opacity: saving ? 0.6 : 1 }}
-            onClick={onSave} disabled={saving}>
+            onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : saved ? "✓ Picks Saved!" : "Save My Picks"}
           </button>
         </div>
