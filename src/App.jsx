@@ -45,9 +45,14 @@ function randomCode() {
 // Returns a map of { "Team Name": true } for all teams that have WON a game
 async function fetchESPNWinners() {
   try {
+    // Only fetch during tournament dates
+    const now = new Date();
+    const tournamentStart = new Date("2026-03-19T00:00:00Z");
+    const tournamentEnd = new Date("2026-04-07T23:59:59Z");
+    if (now < tournamentStart || now > tournamentEnd) return {};
+
     const today = new Date();
     const winners = {};
-    // Fetch last 7 days to catch all completed tournament games
     for (let d = 0; d < 7; d++) {
       const date = new Date(today);
       date.setDate(today.getDate() - d);
@@ -59,17 +64,14 @@ async function fetchESPNWinners() {
       const data = await res.json();
       const events = data.events || [];
       for (const event of events) {
-        // Only count completed games
         const status = event.status?.type?.completed;
         if (!status) continue;
         const comps = event.competitions?.[0];
         if (!comps) continue;
-        // Find the winner
         for (const team of comps.competitors || []) {
           if (team.winner) {
             const name = team.team?.displayName || team.team?.name || "";
             if (name) winners[name] = true;
-            // Also store short name variants for fuzzy matching
             const shortName = team.team?.shortDisplayName || team.team?.abbreviation || "";
             if (shortName) winners[shortName] = true;
           }
