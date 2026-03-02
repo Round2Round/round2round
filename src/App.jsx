@@ -1016,6 +1016,10 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
 function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scoringLoading, lastUpdated, onRefresh, espnWinners, testWinners, onTestWinner, onClearTest }) {
   const [testInput, setTestInput] = useState("");
   const allWinners = { ...espnWinners, ...(testWinners || {}) };
+  const allWinners = { ...espnWinners, ...(testWinners || {}) };
+const hasScores = Object.keys(allWinners).length > 0;
+console.log("allWinners:", allWinners);
+console.log("leaderboard:", leaderboard);  
   const hasScores = Object.keys(allWinners).length > 0;
 
   const scoredLeaderboard = leaderboard
