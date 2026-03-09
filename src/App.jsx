@@ -249,8 +249,8 @@ function Landing({ onLogin }) {
             No full bracket upfront. Pick each round as it happens — change picks freely until tipoff locks them in.
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
-            <button style={s.btnHeroMain} onClick={onLogin}>Create a Group</button>
-            <button style={s.btnHeroGhost} onClick={onLogin}>Join with a Code</button>
+          <button style={s.btnHeroMain} onClick={onLogin}>Sign Up Free</button>
+          <button style={s.btnHeroGhost} onClick={onLogin}>Sign In</button>
           </div>
         </div>
       </div>
