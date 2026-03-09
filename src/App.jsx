@@ -318,7 +318,8 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
         const userId = data.user?.id || data.id;
         await supabase("profiles", {
           method: "POST", token,
-          prefer: "return=representation",
+          prefer: "return=representation,resolution=merge-duplicates",
+          headers: { "on_conflict": "id" },
           body: { id: userId, display_name: name || email.split("@")[0] },
         });
         onSuccess({ token, refresh_token: data.refresh_token, user: { id: userId, email }, profile: { display_name: name || email.split("@")[0] } });
