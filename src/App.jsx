@@ -235,7 +235,10 @@ function Landing({ onLogin }) {
       <div style={{ background: `linear-gradient(160deg, ${C.navy} 0%, ${C.navyMid} 50%, ${C.ncaaBlueDark} 100%)`, paddingBottom: 80 }}>
         <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 32px", maxWidth: 1100, margin: "0 auto" }}>
           <Logo light />
-          <button style={s.navBtnLight} onClick={onLogin}>Sign In</button>
+          <div style={{ display: "flex", gap: 10 }}>
+  <button style={s.navBtnLight} onClick={onLogin}>Sign In</button>
+  <button style={{ ...s.navBtnLight, background: "#fff", color: C.ncaaBlue, fontWeight: 700 }} onClick={onLogin}>Sign Up Free</button>
+</div>
         </nav>
         <div style={{ textAlign: "center", padding: "64px 24px 0", maxWidth: 660, margin: "0 auto" }}>
           <div style={s.heroBadge}><span style={s.liveDot} />March Madness 2026 · Men's &amp; Women's</div>
