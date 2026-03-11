@@ -239,7 +239,8 @@ export default function App() {
       {screen === "auth" && <Auth mode={authMode} setMode={setAuthMode} onSuccess={(sess) => { saveSession(sess); setScreen("dashboard"); }} showToast={showToast} />}
       {screen === "create" && <CreateGroup session={session} onCreate={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Group created! 🎉"); }} onBack={() => setScreen("dashboard")} showToast={showToast} />}
       {screen === "join" && <JoinGroup session={session} onJoin={(g) => { setActiveGroup(g); setScreen("dashboard"); showToast("Joined group! 🏀"); }} onBack={() => setScreen("dashboard")} showToast={showToast} />}
-      {screen === "dashboard" && !activeGroup && <Dashboard session={session} onSelectGroup={(g) => setActiveGroup(g)} onCreateGroup={() => setScreen("create")} onJoinGroup={() => setScreen("join")} onLogout={handleLogout} showToast={showToast} refreshSession={refreshSession} handleLogout={handleLogout} />}
+      {screen === "rules" && <RulesPage onBack={() => setScreen(session ? "dashboard" : "landing")} />}
+      {screen === "dashboard" && !activeGroup && <Dashboard session={session} onSelectGroup={(g) => setActiveGroup(g)} onCreateGroup={() => setScreen("create")} onJoinGroup={() => setScreen("join")} onLogout={handleLogout} showToast={showToast} refreshSession={refreshSession} handleLogout={handleLogout} onRules={() => setScreen("rules")} />}
       {screen === "dashboard" && activeGroup && <GroupScreen group={activeGroup} session={session} activeTab={activeTab} setActiveTab={setActiveTab} onBack={() => { setActiveGroup(null); setActiveTab("picks"); }} showToast={showToast} />}
     </div>
   );
@@ -395,7 +396,7 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogout, showToast, refreshSession, handleLogout }) {
+function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogout, showToast, refreshSession, handleLogout, onRules }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 const [editingName, setEditingName] = useState(false);
@@ -507,12 +508,15 @@ const handleSaveName = async () => {
             </div>
           </div>
         ))}
-        <div style={s.infoCard}>
+<div style={s.infoCard}>
           <div style={{ fontSize: "1.5rem" }}>🔒</div>
           <div>
             <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.text, marginBottom: 4 }}>Picks stay private until deadline</div>
             <div style={{ fontSize: "0.8rem", color: C.textMuted, lineHeight: 1.55 }}>No one can see what others picked until each round locks at tipoff.</div>
           </div>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <span style={{ fontSize: "0.82rem", color: C.ncaaBlue, cursor: "pointer", fontWeight: 600 }} onClick={onRules}>📋 How to Play / Rules</span>
         </div>
       </div>
     </div>
@@ -1109,7 +1113,75 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scori
     </div>
   );
 }
+// ─── RULES PAGE ───────────────────────────────────────────────────────────────
+function RulesPage({ onBack }) {
+  return (
+    <div style={s.lightPage}>
+      <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyMid})`, paddingBottom: 48 }}>
+        <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px" }}>
+          <button style={{ ...s.backBtn, color: "rgba(255,255,255,0.7)" }} onClick={onBack}>← Back</button>
+          <Logo light />
+          <span style={{ width: 60 }} />
+        </nav>
+        <div style={{ padding: "8px 32px 0", maxWidth: 680, margin: "0 auto" }}>
+          <h2 style={{ fontSize: "1.8rem", fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", marginBottom: 4 }}>How to Play</h2>
+          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.875rem" }}>Round 2 Round · March Madness 2026</p>
+        </div>
+      </div>
+      <div style={{ maxWidth: 680, margin: "-32px auto 0", padding: "0 24px 60px", position: "relative", zIndex: 1 }}>
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: "28px 24px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", gap: 28 }}>
 
+          <div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: C.navy, marginBottom: 8 }}>🏀 How It Works</div>
+            <div style={{ fontSize: "0.88rem", color: C.textMid, lineHeight: 1.7 }}>
+              Round 2 Round is a round-by-round March Madness pool. Instead of filling out a full bracket upfront, you pick the winners for each round as it happens. Make your picks, save them before the deadline, and see how you stack up on the leaderboard.
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: C.navy, marginBottom: 8 }}>📋 Picking Rules</div>
+            <div style={{ fontSize: "0.88rem", color: C.textMid, lineHeight: 1.7 }}>
+              <p style={{ marginBottom: 8 }}>• Pick the winner of each matchup before the round deadline.</p>
+              <p style={{ marginBottom: 8 }}>• You do <strong>not</strong> need to pick Play-In games. The Round of 64 is your first round of picks.</p>
+              <p style={{ marginBottom: 8 }}>• All picks for a round must be submitted before the <strong>first game of that round tips off</strong>. Once that first game starts, the entire round locks and no more changes can be made.</p>
+              <p style={{ marginBottom: 8 }}>• You can change your picks as many times as you want before the deadline — but don't forget to hit <strong>Save</strong>!</p>
+              <p>• Picks are <strong>hidden from all other players</strong> until the round locks. No peeking at what others picked before the deadline.</p>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: C.navy, marginBottom: 12 }}>🏆 Scoring</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+              {ROUND_NAMES.map((r, i) => (
+                <div key={r} style={{ background: i === 5 ? C.ncaaBlueFade : C.surfaceGray, border: `1px solid ${i === 5 ? "rgba(0,94,184,0.25)" : C.border}`, borderRadius: 10, padding: "12px 10px", textAlign: "center" }}>
+                  <div style={{ fontSize: "1.6rem", fontWeight: 900, color: i === 5 ? C.ncaaBlue : C.text }}>{ROUND_POINTS[i]}</div>
+                  <div style={{ fontSize: "0.6rem", color: C.textMuted, textTransform: "uppercase", fontWeight: 700 }}>pt{ROUND_POINTS[i] > 1 ? "s" : ""}</div>
+                  <div style={{ fontSize: "0.72rem", color: C.textMid, marginTop: 4, fontWeight: 500 }}>{r}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: "0.82rem", color: C.textMuted, marginTop: 12, lineHeight: 1.6 }}>
+              Points increase each round — a correct Championship pick is worth 6x a first round pick. Every correct pick counts!
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: C.navy, marginBottom: 8 }}>🥇 Winning</div>
+            <div style={{ fontSize: "0.88rem", color: C.textMid, lineHeight: 1.7 }}>
+              The player with the most total points at the end of the tournament wins. Points accumulate across all rounds — so even if you have a rough first round, big upsets later can turn things around!
+            </div>
+          </div>
+
+          <div style={{ background: C.ncaaBlueFade, border: `1px solid rgba(0,94,184,0.2)`, borderRadius: 12, padding: "16px 18px" }}>
+            <div style={{ fontSize: "0.88rem", color: C.ncaaBlue, fontWeight: 700, marginBottom: 4 }}>💡 Pro Tip</div>
+            <div style={{ fontSize: "0.82rem", color: C.textMid, lineHeight: 1.6 }}>Don't wait until the last minute! Set your picks early and save them. The round locks the moment the first game tips off — no exceptions.</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
 // ─── LOGO ────────────────────────────────────────────────────────────────────
 function Logo({ light = false }) {
   return (
