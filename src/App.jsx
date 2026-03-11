@@ -398,6 +398,28 @@ function Auth({ mode, setMode, onSuccess, showToast }) {
 function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogout, showToast, refreshSession, handleLogout }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+const [editingName, setEditingName] = useState(false);
+const [newName, setNewName] = useState(session.profile?.display_name || "");
+const [savingName, setSavingName] = useState(false);
+
+const handleSaveName = async () => {
+  if (!newName.trim()) return;
+  setSavingName(true);
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${session.user.id}`, {
+      method: "PATCH",
+      headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: newName.trim() }),
+    });
+    session.profile.display_name = newName.trim();
+    setEditingName(false);
+    showToast("Name updated! ✓");
+  } catch (err) {
+    showToast("Couldn't update name: " + err.message, "error");
+  } finally {
+    setSavingName(false);
+  }
+};
 
   useEffect(() => { loadGroups(); }, []);
 
@@ -428,6 +450,21 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
 
   return (
     <div style={s.lightPage}>
+      {editingName && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: C.surface, borderRadius: 20, padding: "32px 28px", width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: C.navy, marginBottom: 6 }}>Update Your Name</h3>
+            <p style={{ fontSize: "0.82rem", color: C.textMuted, marginBottom: 20 }}>This is how you appear on leaderboards.</p>
+            <input style={s.input} value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSaveName()} autoFocus />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button style={{ ...s.btnOutline, flex: 1 }} onClick={() => setEditingName(false)}>Cancel</button>
+              <button style={{ ...s.btnPrimary, flex: 1, opacity: savingName ? 0.6 : 1 }} onClick={handleSaveName} disabled={savingName}>
+                {savingName ? "Saving..." : "Save Name"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ background: `linear-gradient(135deg, ${C.navy}, ${C.navyMid})`, paddingBottom: 48 }}>
         <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px" }}>
           <Logo light />
