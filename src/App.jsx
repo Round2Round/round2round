@@ -434,6 +434,7 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.8)", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: "0.75rem", fontFamily: "inherit" }} onClick={() => setEditingName(true)}>✏️ {session.profile?.display_name}</button>
 <button style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: "0.75rem", fontFamily: "inherit" }} onClick={onLogout}>Sign Out</button>
+            </div>
         </nav>
         <div style={{ padding: "16px 32px 0", maxWidth: 680, margin: "0 auto" }}>
           <h2 style={{ fontSize: "1.8rem", fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", marginBottom: 4 }}>My Groups</h2>
