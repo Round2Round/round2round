@@ -426,7 +426,7 @@ function Dashboard({ session, onSelectGroup, onCreateGroup, onJoinGroup, onLogou
       </div>
       <div style={{ maxWidth: 680, margin: "-32px auto 0", padding: "0 24px 60px", position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginBottom: 20 }}>
-          <button style={s.btnOutline} onClick={onJoinGroup}>Join a Group</button>
+          <button style={s.btnPrimary} onClick={onJoinGroup}>Join a Group</button>
           <button style={s.btnPrimary} onClick={onCreateGroup}>+ Create Group</button>
         </div>
         {loading && <div style={s.loadingBox}>Loading your groups...</div>}
