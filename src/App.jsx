@@ -128,6 +128,23 @@ const TEAMS_MENS = [
   { id: 32, name: "Utah St.", seed: 8, region: "Midwest" },
 ];
 
+// ESPN team ID map for logos
+const ESPN_IDS = {
+  "Connecticut": 41, "Iowa St.": 66, "Illinois": 356, "Auburn": 2,
+  "San Diego St.": 21, "BYU": 252, "Washington St.": 265, "Florida Atlantic": 2226,
+  "North Carolina": 153, "Arizona": 12, "Baylor": 239, "Alabama": 333,
+  "Saint Mary's": 2608, "Clemson": 228, "Dayton": 2197, "Mississippi St.": 344,
+  "Houston": 248, "Marquette": 269, "Kentucky": 96, "Duke": 150,
+  "Wisconsin": 275, "Texas Tech": 2641, "Florida": 57, "Nebraska": 158,
+  "Purdue": 2509, "Tennessee": 2633, "Creighton": 156, "Kansas": 2305,
+  "Gonzaga": 2250, "South Carolina": 2579, "Texas": 251, "Utah St.": 328,
+};
+
+function getLogoUrl(teamName) {
+  const id = ESPN_IDS[teamName];
+  if (!id) return null;
+  return `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png`;
+}
 const ROUND_NAMES = ["Round of 64", "Round of 32", "Sweet 16", "Elite Eight", "Final Four", "Championship"];
 const ROUND_POINTS = [1, 2, 3, 4, 5, 6];
 const REGIONS = ["East", "West", "South", "Midwest"];
@@ -913,13 +930,19 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
       onTouchEnd={handleTouch}
       onClick={(e) => { if (!("ontouchstart" in window)) { e.preventDefault(); if (!locked) onPick(e); } }}
     >
-      <div style={{
-        minWidth: 36, height: 28, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
-        background: team.seed <= 2 ? C.ncaaBlueFadeMed : C.surfaceGray,
-        border: `1px solid ${team.seed <= 2 ? "rgba(0,94,184,0.3)" : C.border}`,
-        fontSize: "0.72rem", fontWeight: 800, color: team.seed <= 2 ? C.ncaaBlue : C.textMuted, flexShrink: 0,
-        pointerEvents: "none",
-      }}>#{team.seed}</div>
+      <div style={{ position: "relative", flexShrink: 0, width: 44, height: 44, pointerEvents: "none" }}>
+        {getLogoUrl(team.name)
+          ? <img src={getLogoUrl(team.name)} alt={team.name} style={{ width: 44, height: 44, objectFit: "contain" }} onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
+          : null}
+        <div style={{
+          display: getLogoUrl(team.name) ? "none" : "flex",
+          width: 44, height: 44, borderRadius: 8, alignItems: "center", justifyContent: "center",
+          background: team.seed <= 2 ? C.ncaaBlueFadeMed : C.surfaceGray,
+          border: `1px solid ${team.seed <= 2 ? "rgba(0,94,184,0.3)" : C.border}`,
+          fontSize: "0.72rem", fontWeight: 800, color: team.seed <= 2 ? C.ncaaBlue : C.textMuted,
+        }}>#{team.seed}</div>
+        <div style={{ position: "absolute", bottom: -4, right: -4, background: team.seed <= 2 ? C.ncaaBlue : C.textMuted, color: "#fff", fontSize: "0.55rem", fontWeight: 800, borderRadius: 4, padding: "1px 4px", lineHeight: 1.4 }}>#{team.seed}</div>
+      </div>
       <div style={{ flex: 1, pointerEvents: "none" }}>
         <div style={{ fontSize: "0.92rem", fontWeight: 700, color: C.text }}>{team.name}</div>
         <div style={{ fontSize: "0.68rem", color: C.textMuted, marginTop: 1 }}>{team.region} · Seed {team.seed}</div>
