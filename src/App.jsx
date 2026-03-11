@@ -471,6 +471,7 @@ const handleSaveName = async () => {
           <Logo light />
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.82rem", cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted" }} onClick={() => setEditingName(true)}>{session.profile?.display_name}</span>
+<button style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: "0.75rem", fontFamily: "inherit" }} onClick={onRules}>📋</button>
 <button style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: "0.75rem", fontFamily: "inherit" }} onClick={onLogout}>Sign Out</button>
             </div>
         </nav>
