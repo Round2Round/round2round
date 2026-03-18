@@ -1151,9 +1151,11 @@ function PicksTab({ matchups, myPicks, onPick, onSave, saving, saved, picksCount
           </div>
         );
       })}
+  </div>
     </div>
   );
 }
+// ─── MATCHUP CARD ─────────────────────────────────────────────────────────────
 
 // ─── MATCHUP CARD ─────────────────────────────────────────────────────────────
 function MatchupCard({ matchup, pick, onPick, locked, espnWinners }) {
