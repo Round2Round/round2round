@@ -1153,7 +1153,6 @@ function PicksTab({ matchups, myPicks, onPick, onSave, saving, saved, picksCount
         );
       })}
   </div>
-    </div>
   );
 }
 // ─── MATCHUP CARD ─────────────────────────────────────────────────────────────
