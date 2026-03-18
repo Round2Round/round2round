@@ -122,7 +122,7 @@ const TEAMS_MENS = [
   { id: 24, name: "Villanova", seed: 8, region: "West" },
   { id: 25, name: "Utah State", seed: 9, region: "West" },
   { id: 26, name: "Missouri", seed: 10, region: "West" },
-  { id: 27, name: "NC State", seed: 11, region: "West" },
+  { id: 27, name: "Texas", seed: 11, region: "West" },
   { id: 28, name: "High Point", seed: 12, region: "West" },
   { id: 29, name: "Hawaii", seed: 13, region: "West" },
   { id: 30, name: "Kennesaw State", seed: 14, region: "West" },
@@ -262,6 +262,7 @@ const ESPN_IDS = {
 "North Dakota State": 2449,
 "Texas A&M": 245,
 "TCU": 2628,
+"Texas": 251,
 "Play-In Winner": null,
 };
 
