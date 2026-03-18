@@ -623,11 +623,7 @@ function CreateGroup({ session, onCreate, onBack, showToast }) {
           <label style={s.label}>Group Name</label>
           <input style={s.input} placeholder="e.g. Office Madness 2026" value={name} onChange={e => setName(e.target.value)} />
           <label style={s.label}>Tournament</label>
-          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-            {["Men's", "Women's", "Both"].map(opt => (
-              <button key={opt} style={tournament === opt ? s.toggleOn : s.toggleOff} onClick={() => setTournament(opt)}>{opt}</button>
-            ))}
-          </div>
+          <div style={{ marginBottom: 20, fontSize: "0.85rem", color: C.textMuted }}>Men's NCAA Tournament 2026</div>
           <button style={{ ...s.btnPrimary, width: "100%", padding: "14px", opacity: name.length < 2 || loading ? 0.4 : 1 }} onClick={handleCreate} disabled={name.length < 2 || loading}>
             {loading ? "Creating..." : "Create Group →"}
           </button>
