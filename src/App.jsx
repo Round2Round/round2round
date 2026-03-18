@@ -176,6 +176,7 @@ const ESPN_IDS = {
   "Ohio State": 194,
   "Arizona": 12,
   "Iowa State": 66,
+  "Iowa": 2294,
   "Illinois": 356,
   "Alabama": 333,
   "Wisconsin": 275,
