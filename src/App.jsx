@@ -1099,8 +1099,9 @@ function PicksTab({ matchups, myPicks, onPick, onSave, saving, saved, picksCount
       {!deadlinePassed ? (
         <div style={s.deadlineBanner}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.green }}>⏰ Pick your winners before tipoff</div>
-            <div style={{ fontSize: "0.75rem", color: C.textMuted, marginTop: 2 }}>Hit Save when you're done</div>
+<div style={{ fontWeight: 700, fontSize: "0.9rem", color: C.green }}>⏰ Pick your winners before tipoff</div>
+<div style={{ fontSize: "0.75rem", color: C.textMuted, marginTop: 2 }}>Deadline: Thu Mar 19 · 12:15pm ET / 10:15am MT</div>
+<div style={{ fontSize: "0.72rem", color: C.textMuted, marginTop: 2 }}>Hit Save when you're done</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: "1.25rem", fontWeight: 900, color: C.green, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
