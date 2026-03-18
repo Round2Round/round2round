@@ -176,7 +176,6 @@ const ESPN_IDS = {
   "Ohio State": 194,
   "Arizona": 12,
   "Iowa State": 66,
-  "Iowa": 2294,
   "Illinois": 356,
   "Alabama": 333,
   "Wisconsin": 275,
@@ -229,6 +228,11 @@ const ESPN_IDS = {
 "UCF": 2116,
 "Saint Louis": 139,
 "Santa Clara": 2608,
+"Iowa": 2294,
+"Northern Iowa": 2269,
+"Hawaii": 62,
+"Missouri": 142,
+"Hofstra": 2278,
 };
 
 function getLogoUrl(teamName) {
