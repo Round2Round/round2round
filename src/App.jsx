@@ -198,6 +198,36 @@ const ESPN_IDS = {
   "BYU": 252,
   "Kentucky": 96,
   "Georgia": 61,
+  "Furman": 231,
+"Troy": 2653,
+"Kennesaw State": 2390,
+"Siena": 2561,
+"Queens": 2511,
+"Idaho": 70,
+"Howard": 2272,
+"UMBC": 2378,
+"Wright State": 2711,
+"Penn": 219,
+"Tennessee State": 2534,
+"Long Island University": 2350,
+"Hofstra": 2278,
+"High Point": 2272,
+"Utah State": 328,
+"Texas A&M": 245,
+"VCU": 2670,
+"Akron": 2006,
+"North Dakota State": 2449,
+"Cal Baptist": 2856,
+"McNeese": 2377,
+"Hawai'i": 62,
+"Kennesaw State": 2390,
+"NC State": 152,
+"South Florida": 58,
+"UNI": 2269,
+"TCU": 2628,
+"UCF": 2116,
+"Saint Louis": 139,
+"Santa Clara": 2608,
 };
 
 function getLogoUrl(teamName) {
@@ -1140,10 +1170,12 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
       onTouchEnd={handleTouch}
       onClick={(e) => { if (!("ontouchstart" in window)) { e.preventDefault(); if (!locked) onPick(e); } }}
     >
-      <div style={{ position: "relative", flexShrink: 0, width: 44, height: 44, pointerEvents: "none" }}>
-        {getLogoUrl(team.name)
-          ? <img src={getLogoUrl(team.name)} alt={team.name} style={{ width: 44, height: 44, objectFit: "contain" }} onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
-          : null}
+<div style={{ position: "relative", flexShrink: 0, width: 44, height: 44, pointerEvents: "none" }}>
+        {getLogoUrl(team.name) ? (
+          <img src={getLogoUrl(team.name)} alt={team.name}
+            style={{ width: 44, height: 44, objectFit: "contain" }}
+            onError={e => { e.target.style.display = "none"; e.target.nextElementSibling.style.display = "flex"; }} />
+        ) : null}
         <div style={{
           display: getLogoUrl(team.name) ? "none" : "flex",
           width: 44, height: 44, borderRadius: 8, alignItems: "center", justifyContent: "center",
