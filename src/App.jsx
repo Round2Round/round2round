@@ -814,25 +814,102 @@ const handleSaveName = async () => {
     }
   };
 
-  const loadLeaderboard = async (currentRound, members) => {
+const loadLeaderboard = async (currentRound, members) => {
     try {
       if (!members?.length) return;
       const profiles = await supabase(`profiles?id=in.(${members.map(m => m.user_id).join(",")})&select=*`, { token: session.token });
-      let allPicks = [];
-      if (currentRound) {
-        const mps = await supabase(`matchups?round_id=eq.${currentRound.id}&select=id`, { token: session.token });
-        const pickIds = (mps || []).map(m => m.id).join(",");
-        if (pickIds) allPicks = await supabase(`picks?matchup_id=in.(${pickIds})&select=*`, { token: session.token }) || [];
+      // Load ALL rounds for this group for cumulative scoring
+      const allRounds = await supabase(`rounds?group_id=eq.${group.id}&select=*&order=round_number.asc`, { token: session.token }) || [];
+      let allPicksWithRound = [];
+      for (const r of allRounds) {
+        const mps = await supabase(`matchups?round_id=eq.${r.id}&select=id`, { token: session.token }) || [];
+        const pickIds = mps.map(m => m.id).join(",");
+        if (pickIds) {
+          const picks = await supabase(`picks?matchup_id=in.(${pickIds})&select=*`, { token: session.token }) || [];
+          picks.forEach(p => allPicksWithRound.push({ ...p, roundNumber: r.round_number }));
+        }
       }
       const lb = (profiles || []).map(p => ({
         id: p.id, name: p.display_name,
-        picks: allPicks.filter(pk => pk.user_id === p.id),
+        picks: allPicksWithRound.filter(pk => pk.user_id === p.id),
         isMe: p.id === session.user.id,
       }));
       setLeaderboard(lb);
     } catch { }
   };
+const ADMIN_USER_ID = "27fcf0ef-709d-4ab1-a9fe-4d02e5bab76f";
+  const isAdmin = session.user.id === ADMIN_USER_ID;
 
+  const handleAdvanceRound = async () => {
+    if (!window.confirm(`Advance to Round ${(group.current_round || 1) + 1}? Make sure all Round ${group.current_round} games are complete.`)) return;
+    try {
+      const nextRound = (group.current_round || 1) + 1;
+      if (nextRound > 6) { showToast("Tournament is complete!", "error"); return; }
+
+      // Lock current round
+      await fetch(`${SUPABASE_URL}/rest/v1/rounds?group_id=eq.${group.id}&round_number=eq.${group.current_round}`, {
+        method: "PATCH",
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ is_locked: true }),
+      });
+
+      // Get current matchups and ESPN winners
+      const winners = await fetchESPNWinners();
+      const allWinnersNow = { ...winners, ...testWinners };
+      const currentMatchups = await supabase(`matchups?round_id=eq.${round.id}&select=*&order=region.asc`, { token: session.token }) || [];
+
+      // Build next round matchups: winners of each pair of games advance
+      const nextMatchups = [];
+      REGIONS.forEach(region => {
+        const regionMps = currentMatchups.filter(m => m.region === region);
+        // Pair games: game 0 winner vs game 1 winner, game 2 winner vs game 3 winner, etc.
+        for (let i = 0; i < regionMps.length; i += 2) {
+          const g1 = regionMps[i];
+          const g2 = regionMps[i + 1];
+          if (!g1 || !g2) continue;
+          const w1 = teamNameMatch(g1.team1_name, allWinnersNow) ? g1.team1_name : g1.team2_name;
+          const w1seed = teamNameMatch(g1.team1_name, allWinnersNow) ? g1.team1_seed : g1.team2_seed;
+          const w2 = teamNameMatch(g2.team1_name, allWinnersNow) ? g2.team1_name : g2.team2_name;
+          const w2seed = teamNameMatch(g2.team1_name, allWinnersNow) ? g2.team1_seed : g2.team2_seed;
+          nextMatchups.push({ team1_name: w1, team1_seed: w1seed, team2_name: w2, team2_seed: w2seed, region });
+        }
+      });
+
+      // Round deadlines
+      const deadlines = [
+        "2026-03-20T17:00:00Z", // R1 (already passed)
+        "2026-03-22T12:00:00Z", // R2
+        "2026-03-27T12:00:00Z", // Sweet 16
+        "2026-03-29T12:00:00Z", // Elite 8
+        "2026-04-04T18:00:00Z", // Final Four
+        "2026-04-06T20:00:00Z", // Championship
+      ];
+
+      // Create new round
+      const newRounds = await supabase("rounds", {
+        method: "POST", token: session.token, prefer: "return=representation",
+        body: { group_id: group.id, round_number: nextRound, deadline: deadlines[nextRound - 1], is_locked: false },
+      });
+      const newRound = Array.isArray(newRounds) ? newRounds[0] : newRounds;
+
+      // Create matchups for new round
+      const matchupRows = nextMatchups.map(m => ({ ...m, round_id: newRound.id }));
+      await supabase("matchups", { method: "POST", token: session.token, body: matchupRows });
+
+      // Advance group round number
+      await fetch(`${SUPABASE_URL}/rest/v1/groups?id=eq.${group.id}`, {
+        method: "PATCH",
+        headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${session.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ current_round: nextRound }),
+      });
+
+      showToast(`Round ${nextRound} is live! 🏀`);
+      group.current_round = nextRound;
+      loadGroupData();
+    } catch (err) {
+      showToast("Error advancing round: " + err.message, "error");
+    }
+  };
   const handlePick = (matchupId, teamName) => {
     if (round?.is_locked) return;
     setSaved(false);
@@ -907,6 +984,7 @@ return (
             <span style={s.lightChipYellow}>{ROUND_POINTS[(group.current_round || 1) - 1]} pt{ROUND_POINTS[(group.current_round || 1) - 1] > 1 ? "s" : ""} per pick</span>
             <span style={s.lightChip}>{memberCount} players</span>
             <span style={s.lightChip}>Code: {group.code}</span>
+            {isAdmin && <span style={{ background: "#fbbf24", color: "#92400e", padding: "5px 12px", borderRadius: 100, fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }} onClick={handleAdvanceRound}>⚡ Advance Round</span>}
           </div>
         </div>
       </div>
@@ -1094,13 +1172,19 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scori
   const [testInput, setTestInput] = useState("");
   const hasScores = Object.keys(espnWinners).length > 0;
 
-  const scoredLeaderboard = leaderboard
+const scoredLeaderboard = leaderboard
     .map(p => {
       if (!p.picks?.length || !hasScores) return { ...p, points: 0, correct: 0 };
-      const roundPoints = ROUND_POINTS[(group.current_round || 1) - 1];
-      let correct = 0;
-      p.picks.forEach(pick => { if (teamNameMatch(pick.picked_team, espnWinners)) correct++; });
-      return { ...p, points: correct * roundPoints, correct };
+      let totalPoints = 0;
+      let totalCorrect = 0;
+      p.picks.forEach(pick => {
+        if (teamNameMatch(pick.picked_team, espnWinners)) {
+          const pts = ROUND_POINTS[(pick.roundNumber || 1) - 1];
+          totalPoints += pts;
+          totalCorrect++;
+        }
+      });
+      return { ...p, points: totalPoints, correct: totalCorrect };
     })
     .sort((a, b) => b.points - a.points);
 
