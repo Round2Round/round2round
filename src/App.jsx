@@ -1063,10 +1063,10 @@ return (
           <div style={{ padding: "0 24px 32px" }}>
             {loading && <div style={{ padding: "40px 0", textAlign: "center", color: C.textMuted }}>Loading...</div>}
             {!loading && activeTab === "picks" && (
-              <PicksTab matchups={matchups} myPicks={myPicks} onPick={handlePick}
+             <PicksTab matchups={matchups} myPicks={myPicks} onPick={handlePick}
                 onSave={handleSave} saving={saving} saved={saved}
                 picksCount={picksCount} total={total} countdown={countdown}
-                deadlinePassed={deadlinePassed} espnWinners={allWinners} />
+                deadlinePassed={deadlinePassed} espnWinners={allWinners} deadline={deadline} />
             )}
             {!loading && activeTab === "leaderboard" && (
               <LeaderboardTab leaderboard={leaderboard} group={group}
