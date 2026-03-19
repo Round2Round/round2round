@@ -1239,6 +1239,7 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
 // ─── LEADERBOARD ─────────────────────────────────────────────────────────────
 function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scoringLoading, lastUpdated, onRefresh, espnWinners, testWinners, onTestWinner, onClearTest }) {
   const [testInput, setTestInput] = useState("");
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
   const hasScores = Object.keys(espnWinners).length > 0;
 
 const scoredLeaderboard = leaderboard
@@ -1289,13 +1290,47 @@ const scoredLeaderboard = leaderboard
         ))}
       </div>
 
+{selectedPlayer && deadlinePassed && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setSelectedPlayer(null)}>
+          <div style={{ background: C.surface, borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 440, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "1.1rem", color: C.navy }}>{selectedPlayer.name}'s Picks</div>
+                <div style={{ fontSize: "0.75rem", color: C.textMuted }}>{ROUND_NAMES[(group.current_round || 1) - 1]}</div>
+              </div>
+              <button style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: C.textMuted }} onClick={() => setSelectedPlayer(null)}>×</button>
+            </div>
+            {selectedPlayer.picks?.length === 0 && <div style={{ color: C.textMuted, fontSize: "0.85rem" }}>No picks submitted.</div>}
+            {selectedPlayer.picks?.filter(pk => pk.roundNumber === (group.current_round || 1)).map((pick, i) => {
+              const won = teamNameMatch(pick.picked_team, espnWinners);
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: won ? C.greenFade : C.surfaceGray, border: `1px solid ${won ? "rgba(22,163,74,0.2)" : C.border}`, borderRadius: 10, marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {getLogoUrl(pick.picked_team) && <img src={getLogoUrl(pick.picked_team)} alt={pick.picked_team} style={{ width: 28, height: 28, objectFit: "contain" }} />}
+                    <span style={{ fontWeight: 600, fontSize: "0.88rem", color: C.text }}>{pick.picked_team}</span>
+                  </div>
+                  {won ? <span style={{ background: C.green, color: "#fff", padding: "2px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>✓ Correct</span>
+                    : hasScores ? <span style={{ background: C.redFade, color: C.red, padding: "2px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>✗ Wrong</span>
+                    : <span style={{ background: C.surfaceGray, color: C.textMuted, padding: "2px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 600 }}>Pending</span>}
+                </div>
+              );
+            })}
+            <div style={{ marginTop: 16, padding: "12px 14px", background: C.ncaaBlueFade, borderRadius: 10, textAlign: "center" }}>
+              <span style={{ fontWeight: 800, fontSize: "1rem", color: C.ncaaBlue }}>{selectedPlayer.points} pts</span>
+              <span style={{ fontSize: "0.78rem", color: C.textMuted, marginLeft: 8 }}>{selectedPlayer.correct} correct this round</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {scoredLeaderboard.length === 0 && <div style={s.emptyBox}>No players yet.</div>}
       {scoredLeaderboard.map((p, i) => (
-        <div key={p.id} style={{
+        <div key={p.id} onClick={() => deadlinePassed && setSelectedPlayer(p)} style={{
           display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
           background: p.isMe ? C.ncaaBlueFade : C.surface,
           border: `1px solid ${p.isMe ? "rgba(0,94,184,0.25)" : C.border}`,
           borderRadius: 12, marginBottom: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+          cursor: deadlinePassed ? "pointer" : "default",
         }}>
           <div style={{ width: 32, textAlign: "center", fontSize: i < 3 ? "1.1rem" : "0.82rem", fontWeight: 700, color: C.textMuted }}>
             {i < 3 ? ["🥇", "🥈", "🥉"][i] : `#${i + 1}`}
