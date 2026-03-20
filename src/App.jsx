@@ -545,7 +545,7 @@ const handleSaveName = async () => {
   }
 };
 
-  useEffect(() => { loadGroups(); }, []);
+  useEffect(() => { if (session?.token) loadGroups(); }, [session?.token]);
 
   const loadGroups = async () => {
     setLoading(true);
