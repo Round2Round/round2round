@@ -1194,19 +1194,14 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
 
   const handleTouch = (e) => { e.preventDefault(); e.stopPropagation(); if (!locked) onPick(e); };
 
-  return (
+return (
     <div style={{
-      display: "flex", alignItems: "center", gap: 14, padding: "18px 16px", minHeight: 64,
+      display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", minHeight: 64,
       background: bg, borderLeft: `3px solid ${borderColor}`,
-      cursor: locked ? "default" : "pointer",
       opacity: lost && !selected ? 0.4 : 1,
       transition: "background 0.15s",
-      WebkitTapHighlightColor: "transparent",
       userSelect: "none",
-    }}
-      onTouchEnd={handleTouch}
-      onClick={(e) => { if (!("ontouchstart" in window)) { e.preventDefault(); if (!locked) onPick(e); } }}
-    >
+    }}>
 <div style={{ position: "relative", flexShrink: 0, width: 44, height: 44, pointerEvents: "none" }}>
         {getLogoUrl(team.name) ? (
           <img src={getLogoUrl(team.name)} alt={team.name}
@@ -1226,11 +1221,24 @@ function TeamRow({ team, selected, onPick, locked, won, lost, correct }) {
         <div style={{ fontSize: "0.92rem", fontWeight: 700, color: C.text }}>{team.name}</div>
         <div style={{ fontSize: "0.68rem", color: C.textMuted, marginTop: 1 }}>{team.region} · Seed {team.seed}</div>
       </div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0, pointerEvents: "none" }}>
+<div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
         {won && !correct && <span style={{ background: C.green, color: "#fff", padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>WON</span>}
         {lost && <span style={{ background: C.redFade, color: C.red, padding: "3px 8px", borderRadius: 5, fontSize: "0.65rem", fontWeight: 700 }}>OUT</span>}
-        {selected && !won && !lost && <div style={{ background: C.ncaaBlue, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ Picked</div>}
-        {correct && <div style={{ background: C.green, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ +1pt</div>}
+        {correct && <div style={{ background: C.green, color: "#fff", padding: "4px 10px", borderRadius: 6, fontSize: "0.7rem", fontWeight: 700 }}>✓ +pt</div>}
+        {!locked && (
+          <div
+            onTouchEnd={handleTouch}
+            onClick={(e) => { if (!("ontouchstart" in window)) { e.preventDefault(); onPick(e); } }}
+            style={{
+              width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+              border: `2px solid ${selected ? C.ncaaBlue : C.border}`,
+              background: selected ? C.ncaaBlue : "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", WebkitTapHighlightColor: "transparent",
+            }}>
+            {selected && <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#fff" }} />}
+          </div>
+        )}
       </div>
     </div>
   );
