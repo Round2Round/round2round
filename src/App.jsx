@@ -48,6 +48,9 @@ async function fetchESPNWinners() {
     const tournamentStart = new Date("2026-03-19T00:00:00Z");
     const tournamentEnd = new Date("2026-04-07T23:59:59Z");
     if (now < tournamentStart || now > tournamentEnd) return {};
+    // Round 2 starts March 21 noon ET - don't fetch until then
+    const round2Start = new Date("2026-03-21T16:00:00Z");
+    if (now < round2Start) return {};
 
     const today = new Date();
     const winners = {};
