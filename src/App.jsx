@@ -840,7 +840,8 @@ const handleSaveName = async () => {
     return () => clearInterval(interval);
   }, [round]);
 
-  const refreshScores = async () => {
+const refreshScores = async () => {
+    if (!round?.is_locked) { setEspnWinners({}); return; }
     setScoringLoading(true);
     try {
       const winners = await fetchESPNWinners();
