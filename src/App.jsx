@@ -898,10 +898,11 @@ const loadLeaderboard = async (currentRound, members) => {
           picks.forEach(p => allPicksWithRound.push({ ...p, roundNumber: r.round_number }));
         }
       }
-      const lb = (profiles || []).map(p => ({
+const lb = (profiles || []).map(p => ({
         id: p.id, name: p.display_name,
         picks: allPicksWithRound.filter(pk => pk.user_id === p.id),
         isMe: p.id === session.user.id,
+        round1_points: p.round1_points || 0,
       }));
       setLeaderboard(lb);
     } catch { }
@@ -1255,17 +1256,19 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scori
 
 const scoredLeaderboard = leaderboard
     .map(p => {
-      if (!p.picks?.length || !hasScores) return { ...p, points: 0, correct: 0 };
-      let totalPoints = 0;
-      let totalCorrect = 0;
-      p.picks.forEach(pick => {
-        if (teamNameMatch(pick.picked_team, espnWinners)) {
-          const pts = ROUND_POINTS[(pick.roundNumber || 1) - 1];
-          totalPoints += pts;
-          totalCorrect++;
-        }
-      });
-      return { ...p, points: totalPoints, correct: totalCorrect };
+      const pastPoints = p.round1_points || 0;
+      let currentPoints = 0;
+      let currentCorrect = 0;
+      if (p.picks?.length && hasScores) {
+        p.picks.filter(pk => pk.roundNumber === (group.current_round || 1)).forEach(pick => {
+          if (teamNameMatch(pick.picked_team, espnWinners)) {
+            const pts = ROUND_POINTS[(pick.roundNumber || 1) - 1];
+            currentPoints += pts;
+            currentCorrect++;
+          }
+        });
+      }
+      return { ...p, points: pastPoints + currentPoints, correct: currentCorrect, pastPoints };
     })
     .sort((a, b) => b.points - a.points);
 
@@ -1357,9 +1360,9 @@ const scoredLeaderboard = leaderboard
             {p.name}
             {p.isMe && <span style={{ background: C.ncaaBlue, color: "#fff", padding: "2px 7px", borderRadius: 4, fontSize: "0.62rem", fontWeight: 700, marginLeft: 6 }}>YOU</span>}
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontWeight: 800, fontSize: "1rem", color: hasScores ? C.ncaaBlue : C.textMuted }}>{hasScores ? `${p.points} pts` : "—"}</div>
-            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>{hasScores ? `${p.correct} correct` : "awaiting games"}</div>
+<div style={{ textAlign: "right" }}>
+            <div style={{ fontWeight: 800, fontSize: "1rem", color: C.ncaaBlue }}>{p.points} pts</div>
+            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>Rd1: {p.pastPoints}pt{hasScores && p.correct > 0 ? ` · Rd2: ${p.correct} correct` : ""}</div>
           </div>
         </div>
       ))}
