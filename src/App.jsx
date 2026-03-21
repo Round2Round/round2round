@@ -872,9 +872,13 @@ const handleSaveName = async () => {
       setMemberCount(members?.length || 0);
       await loadLeaderboard(currentRound, members);
 
-      const winners = await fetchESPNWinners();
-      setEspnWinners(winners);
-      setLastUpdated(new Date());
+if (round?.is_locked) {
+        const winners = await fetchESPNWinners();
+        setEspnWinners(winners);
+        setLastUpdated(new Date());
+      } else {
+        setEspnWinners({});
+      }
     } catch (err) {
       showToast("Error loading group: " + err.message, "error");
     } finally {
