@@ -51,7 +51,7 @@ async function fetchESPNWinners() {
 
     const today = new Date();
     const winners = {};
-    for (let d = 0; d < 2; d++) {
+    for (let d = 0; d < 7; d++) {
       const date = new Date(today);
       date.setDate(today.getDate() - d);
       const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
