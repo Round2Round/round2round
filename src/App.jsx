@@ -845,6 +845,18 @@ const refreshScores = async () => {
     setScoringLoading(true);
     try {
       const winners = await fetchESPNWinners();
+      if (Object.keys(winners).length > 0) {
+        const currentRoundNum = group.current_round || 1;
+        const existing = await supabase(`round_winners?round_number=eq.${currentRoundNum}&select=team_name`, { token: session.token }) || [];
+        const existingNames = new Set(existing.map(w => w.team_name));
+        const newWinners = Object.keys(winners).filter(w => !existingNames.has(w));
+        if (newWinners.length > 0) {
+          await supabase("round_winners", {
+            method: "POST", token: session.token,
+            body: newWinners.map(w => ({ round_number: currentRoundNum, team_name: w })),
+          });
+        }
+      }
       setEspnWinners(winners);
       setLastUpdated(new Date());
     } catch { } finally { setScoringLoading(false); }
@@ -873,9 +885,11 @@ const refreshScores = async () => {
       setMemberCount(members?.length || 0);
       await loadLeaderboard(currentRound, members);
 
-if (round?.is_locked) {
-        const winners = await fetchESPNWinners();
-        setEspnWinners(winners);
+if (currentRound?.is_locked) {
+        const savedWinners = await supabase(`round_winners?round_number=eq.${group.current_round}&select=team_name`, { token: session.token }) || [];
+        const winnersMap = {};
+        savedWinners.forEach(w => { winnersMap[w.team_name] = true; });
+        setEspnWinners(winnersMap);
         setLastUpdated(new Date());
       } else {
         setEspnWinners({});
