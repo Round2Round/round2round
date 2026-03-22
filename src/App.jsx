@@ -54,9 +54,9 @@ async function fetchESPNWinners() {
 
     const today = new Date();
     const winners = {};
-    for (let d = 0; d < 1; d++) {
+for (let d = 0; d <= 1; d++) {
       const date = new Date(today);
-      date.setDate(today.getDate() - d);
+      date.setDate(today.getDate() + d);
       const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
       const res = await fetch(
         `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${dateStr}&groups=100&limit=100`
