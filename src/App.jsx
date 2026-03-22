@@ -857,7 +857,11 @@ const refreshScores = async () => {
           });
         }
       }
-      setEspnWinners(winners);
+// Always load from database after saving
+      const savedWinners = await supabase(`round_winners?round_number=eq.${group.current_round}&select=team_name`, { token: session.token }) || [];
+      const winnersMap = {};
+      savedWinners.forEach(w => { winnersMap[w.team_name] = true; });
+      setEspnWinners(winnersMap);
       setLastUpdated(new Date());
     } catch { } finally { setScoringLoading(false); }
   };
