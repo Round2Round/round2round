@@ -1312,10 +1312,6 @@ const scoredLeaderboard = leaderboard
           {scoringLoading ? "⟳ Fetching live scores..." : Object.keys(espnWinners).length > 0 && Object.keys(testWinners || {}).length === 0 ? "⚡ ESPN scores live" : Object.keys(testWinners || {}).length > 0 ? "🧪 Test mode active" : "No games completed yet"}
           {lastUpdated && !scoringLoading && <span style={{ marginLeft: 6, color: C.textLight }}>· {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
         </div>
-        <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.ncaaBlue, padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: "0.72rem", fontWeight: 600, fontFamily: "inherit" }}
-          onClick={onRefresh} disabled={scoringLoading}>
-          {scoringLoading ? "..." : "Refresh"}
-        </button>
       </div>
 
       <div style={{ display: "flex", gap: 0, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
