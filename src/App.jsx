@@ -1382,7 +1382,7 @@ const scoredLeaderboard = leaderboard
           </div>
 <div style={{ textAlign: "right" }}>
             <div style={{ fontWeight: 800, fontSize: "1rem", color: C.ncaaBlue }}>{p.points} pts</div>
-            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>Rd1: {p.pastPoints}pt{hasScores && p.correct > 0 ? ` · Rd2: ${p.correct} correct` : ""}</div>
+            <div style={{ fontSize: "0.72rem", color: C.textMuted }}>Past: {p.pastPoints}pt{hasScores && p.correct > 0 ? ` · This Rd: ${p.correct} correct` : ""}</div>
           </div>
         </div>
       ))}
