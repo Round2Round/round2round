@@ -926,6 +926,7 @@ const lb = (profiles || []).map(p => ({
         picks: allPicksWithRound.filter(pk => pk.user_id === p.id),
         isMe: p.id === session.user.id,
         round1_points: p.round1_points || 0,
+        round2_points: p.round2_points || 0,
       }));
       setLeaderboard(lb);
     } catch { }
@@ -1279,7 +1280,7 @@ function LeaderboardTab({ leaderboard, group, memberCount, deadlinePassed, scori
 
 const scoredLeaderboard = leaderboard
     .map(p => {
-      const pastPoints = p.round1_points || 0;
+      const pastPoints = (p.round1_points || 0) + (p.round2_points || 0);
       let currentPoints = 0;
       let currentCorrect = 0;
       if (p.picks?.length && hasScores) {
